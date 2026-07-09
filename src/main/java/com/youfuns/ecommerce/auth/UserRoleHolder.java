@@ -14,7 +14,7 @@ public class UserRoleHolder {
     private final List<UserRole> roles;
     private static final UserRole[] defaultRoles = { UserRole.CUSTOMER };
 
-    private static final UUID BOOTSTRAP_TOKEN = UUID.fromString(System.getenv("YOUFUNS_BOOTSTRAP_MANAGER_TOKEN"));
+    private static final UUID BOOTSTRAP_TOKEN = System.getenv("YOUFUNS_BOOTSTRAP_MANAGER_TOKEN") != null ? UUID.fromString(System.getenv("YOUFUNS_BOOTSTRAP_MANAGER_TOKEN")) : UUID.randomUUID();;
     private static boolean BOOTSTRAP_REGISTERED = false;
 
 
