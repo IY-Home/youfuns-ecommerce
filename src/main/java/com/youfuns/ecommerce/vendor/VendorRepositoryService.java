@@ -41,7 +41,7 @@ public class VendorRepositoryService {
         RoleToken token = user.getToken();
 
         try {
-            PermissionChecker.checkPermission(token, Permission.BECOME_VENDOR);
+            PermissionChecker.checkPermissionWithUser(token, user.getId(), Permission.BECOME_VENDOR);
         } catch (AccessDeniedException e) {
             return new ResultReturn(ResultReturn.Result.FAILURE, "Insufficient permissions to become a vendor.");
         }

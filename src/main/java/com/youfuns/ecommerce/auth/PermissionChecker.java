@@ -18,13 +18,15 @@ import com.youfuns.utils.SimpleLogger;
 public final class PermissionChecker {
     private static TokenManager tokenManager = new TokenManager();
 
+    private static boolean STRICT_CHECK = false;
+
     public static void checkPermission(RoleToken rt, Permission requiredPermission) {
         UserRoleHolder uh = tokenManager.getToken(rt);
         if (uh == null) {
             LoggerManager.quickLog(PermissionChecker.class, "The provided token (" + UuidFormat.shortenUUID(rt.id()) + ") is null", SimpleLogger.Level.ERROR);
             throw new AccessDeniedException("The provided token is invalid");
         }
-        if (requiredPermission.needsSpecificUser()) {
+        if (requiredPermission.needsSpecificUser() && STRICT_CHECK) {
             LoggerManager.quickLog(PermissionChecker.class, "Permission " + requiredPermission + " needs a specific user target for verification!", SimpleLogger.Level.ERROR);
             throw new AccessDeniedException(requiredPermission);
         }

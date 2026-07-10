@@ -15,6 +15,7 @@ import com.youfuns.utils.MapUtils;
 import com.youfuns.utils.SimpleLogger;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -109,9 +110,9 @@ public class Product {
 
     // ============= CONSTRUCTOR =============
 
-    public Product(ProductCreatePayload payload) {
+    public Product(ProductCreatePayload payload, UUID vendorId) {
         this.productId = UUID.randomUUID();
-        this.vendorId = payload.vendorId();
+        this.vendorId = vendorId;
         this.sku = new Sku(payload.sku());
 
         this.name = payload.name();
@@ -867,6 +868,7 @@ public class Product {
                 vendorId,
                 sku,
                 name,
+                createdAt,
                 shortDescription,
                 brand,
                 category,
@@ -1344,6 +1346,7 @@ public class Product {
             UUID vendorId,
             Sku sku,
             String name,
+            LocalDateTime createdAt,
             String shortDescription,
             String brand,
             Subcategory category,

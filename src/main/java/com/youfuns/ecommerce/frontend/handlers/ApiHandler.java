@@ -12,10 +12,7 @@ import com.youfuns.ecommerce.frontend.utils.JsonUtils;
 import com.youfuns.ecommerce.frontend.utils.ResultPayload;
 import com.youfuns.ecommerce.frontend.utils.ResultReturn;
 import com.youfuns.ecommerce.orders.Order;
-import com.youfuns.ecommerce.products.Cart;
-import com.youfuns.ecommerce.products.Product;
-import com.youfuns.ecommerce.products.ProductRepositoryService;
-import com.youfuns.ecommerce.products.Wishlist;
+import com.youfuns.ecommerce.products.*;
 import com.youfuns.ecommerce.user.CustomerService;
 import com.youfuns.ecommerce.user.User;
 import com.youfuns.ecommerce.user.UserProfile;
@@ -30,7 +27,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
+import static com.youfuns.ecommerce.frontend.WebServer.sendResponse;
 import static com.youfuns.ecommerce.frontend.WebServer.setCorsHeaders;
 
 public class ApiHandler implements HttpHandler {
@@ -48,7 +47,7 @@ public class ApiHandler implements HttpHandler {
 
         // Handle preflight
         if ("OPTIONS".equals(exchange.getRequestMethod())) {
-            WebServer.sendResponse(exchange, 200, "", "text/plain");
+            sendResponse(exchange, 200, "", "text/plain");
             return;
         }
 
@@ -182,6 +181,12 @@ public class ApiHandler implements HttpHandler {
             case "/api/products/search":
                 handleProductSearch(exchange, method);
                 break;
+            case "/api/products/search/full":
+                handleProductSearchFull(exchange, method);
+                break;
+
+            case "/api/products/categories":
+                handleGetCategories(exchange, method);
 
             // ============= CUSTOMER PROFILE =============
             case "/api/user/customerprofile":
@@ -721,7 +726,7 @@ public class ApiHandler implements HttpHandler {
             ResultPayload<JsonWebToken> result = frontendService.loginUser(request);
             String jsonResponse = JsonUtils.toJson(result);
             LoggerManager.quickLog(this, "Processed request; sending response...");
-            WebServer.sendResponse(exchange, 200, jsonResponse, "application/json");
+            sendResponse(exchange, 200, jsonResponse, "application/json");
 
         } catch (IOException e) {
             LoggerManager.quickLog(this, "An IOException was encountered when parsing the request: " + e.getMessage());
@@ -745,7 +750,7 @@ public class ApiHandler implements HttpHandler {
             ResultReturn result = frontendService.createUser(request);
             String jsonResponse = JsonUtils.toJson(result);
             LoggerManager.quickLog(this, "Processed request; sending response...");
-            WebServer.sendResponse(exchange, 200, jsonResponse, "application/json");
+            sendResponse(exchange, 200, jsonResponse, "application/json");
 
         } catch (IOException e) {
             LoggerManager.quickLog(this, "An IOException was encountered when parsing the request: " + e.getMessage());
@@ -960,7 +965,7 @@ public class ApiHandler implements HttpHandler {
             return;
         }
         getBody(exchange);
-        ResultPayload<Cart> result = frontendService.getCart(jwt);
+        ResultPayload<List<ProductList.PublicEntry>> result = frontendService.getCart(jwt);
         processResponse(exchange, result);
     }
 
@@ -1055,7 +1060,7 @@ public class ApiHandler implements HttpHandler {
             return;
         }
         getBody(exchange);
-        ResultPayload<Wishlist> result = frontendService.getWishlist(jwt);
+        ResultPayload<List<ProductList.PublicEntry>> result = frontendService.getWishlist(jwt);
         processResponse(exchange, result);
     }
 
@@ -1172,8 +1177,6 @@ public class ApiHandler implements HttpHandler {
 
 // ============= PRODUCT HANDLERS =============
 
-// ============= PRODUCT HANDLERS =============
-
     private void handleProducts(HttpExchange exchange, String method) throws IOException {
         if ("GET".equals(method)) {
             getBody(exchange);
@@ -1204,7 +1207,7 @@ public class ApiHandler implements HttpHandler {
     }
 
     private void handleGetProduct(HttpExchange exchange, String method) throws IOException {
-        if (!verifyMethod(exchange, method, "POST")) return;
+        if (!verifyMethod(exchange, method, "GET")) return;
         try {
             String body = getBody(exchange);
             Map<String, String> params = objectMapper.readValue(body, Map.class);
@@ -1340,6 +1343,77 @@ public class ApiHandler implements HttpHandler {
         processResponse(exchange, result);
     }
 
+    private void handleProductSearchFull(HttpExchange exchange, String method) throws IOException {
+        if (!verifyMethod(exchange, method, "GET")) return;
+
+        String query = exchange.getRequestURI().getQuery();
+        String searchQuery = null;
+        Double minPrice = null;
+        Double maxPrice = null;
+        String category = null;
+        String sortBy = null;
+        String sortOrder = null;
+        Integer limit = null;
+        Integer offset = null;
+
+        // Parse query parameters
+        if (query != null && !query.isEmpty()) {
+            String[] params = query.split("&");
+            for (String param : params) {
+                String[] keyValue = param.split("=");
+                if (keyValue.length == 2) {
+                    String key = keyValue[0];
+                    String value = keyValue[1];
+                    try {
+                        switch (key) {
+                            case "q":
+                                searchQuery = value;
+                                break;
+                            case "minPrice":
+                                minPrice = Double.parseDouble(value);
+                                break;
+                            case "maxPrice":
+                                maxPrice = Double.parseDouble(value);
+                                break;
+                            case "subcategory":
+                                category = value;
+                                break;
+                            case "sortBy":
+                                sortBy = value;
+                                break;
+                            case "sortOrder":
+                                sortOrder = value;
+                                break;
+                            case "limit":
+                                limit = Integer.parseInt(value);
+                                break;
+                            case "offset":
+                                offset = Integer.parseInt(value);
+                                break;
+                        }
+                    } catch (NumberFormatException e) {
+                        LoggerManager.quickLog(this, "Failed to parse parameter: " + key + "=" + value);
+                    }
+                }
+            }
+        }
+
+        getBody(exchange);
+
+        ResultPayload<List<Product.PublicProduct>> result = frontendService.searchProductsPublicFull(
+                searchQuery,
+                minPrice,
+                maxPrice,
+                category,
+                sortBy,
+                sortOrder,
+                limit,
+                offset
+        );
+
+        processResponse(exchange, result);
+    }
+
     private void handleProductCategory(HttpExchange exchange, String method) throws IOException {
         if (!verifyMethod(exchange, method, "POST")) return;
         try {
@@ -1348,6 +1422,17 @@ public class ApiHandler implements HttpHandler {
             String category = params.get("category");
             ResultPayload<List<Product.PublicProduct>> result = frontendService.getProductsByCategoryPublic(category);
             processResponse(exchange, result);
+        } catch (Exception e) {
+            sendResponse(exchange, 400, Map.of("error", "Invalid request: " + e.getMessage()));
+        }
+    }
+
+    private void handleGetCategories(HttpExchange exchange, String method) throws IOException {
+        if (!verifyMethod(exchange, method, "GET")) return;
+        try {
+            String body = getBody(exchange);
+            ResultPayload<List<Subcategory.FullCategory>> categories = frontendService.getAllCategories();
+            processResponse(exchange, categories);
         } catch (Exception e) {
             sendResponse(exchange, 400, Map.of("error", "Invalid request: " + e.getMessage()));
         }
@@ -1740,24 +1825,13 @@ public class ApiHandler implements HttpHandler {
     private void processResponse(HttpExchange exchange, ResultReturn result) throws IOException {
         String jsonResponse = JsonUtils.toJson(result);
         LoggerManager.quickLog(this, "Processed request; sending response...");
-        WebServer.sendResponse(exchange, 200, jsonResponse, "application/json");
+        sendResponse(exchange, 200, jsonResponse, "application/json");
     }
 
     private void processResponse(HttpExchange exchange, ResultPayload<?> result) throws IOException {
         String jsonResponse = JsonUtils.toJson(result);
         LoggerManager.quickLog(this, "Processed request; sending response...");
-        WebServer.sendResponse(exchange, 200, jsonResponse, "application/json");
-    }
-    // Helper methods
-    private static void sendJsonResponse(HttpExchange exchange, int statusCode, Object data)
-            throws IOException {
-        String json = objectMapper.writeValueAsString(data);
-        WebServer.sendResponse(exchange, statusCode, json, "application/json");
+        sendResponse(exchange, 200, jsonResponse, "application/json");
     }
 
-    private static void sendResponse(HttpExchange exchange, int statusCode, Object data)
-            throws IOException {
-        String json = objectMapper.writeValueAsString(data);
-        WebServer.sendResponse(exchange, statusCode, json, "application/json");
-    }
 }

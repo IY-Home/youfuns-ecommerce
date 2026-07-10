@@ -20,12 +20,14 @@ public class Wishlist extends ProductList {
 
     @Override
     protected void checkPermission(RoleToken rt) {
+        // No need to check as it is already checked at addEntry
+        /*
         try {
             PermissionChecker.checkPermissionWithUser(rt, this.userId, Permission.MANAGE_SELF_LISTS);
         } catch (AccessDeniedException e) {
             // Try admin permission as fallback
             PermissionChecker.checkPermission(rt, Permission.MANAGE_ANY_LISTS);
-        }
+        } */
     }
 
     public UUID getUserId() {

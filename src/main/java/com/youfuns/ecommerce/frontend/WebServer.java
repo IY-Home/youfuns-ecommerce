@@ -6,9 +6,11 @@ import com.sun.net.httpserver.HttpServer;
 import com.youfuns.ecommerce.LoggerManager;
 import com.youfuns.ecommerce.frontend.handlers.ApiHandler;
 
+import com.youfuns.ecommerce.frontend.handlers.FileDownloadHandler;
 import com.youfuns.ecommerce.frontend.handlers.FileUploadHandler;
 import com.youfuns.ecommerce.frontend.handlers.HomeHandler;
 import com.youfuns.ecommerce.frontend.payloads.*;
+import com.youfuns.ecommerce.frontend.utils.JsonUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -18,7 +20,7 @@ import java.util.concurrent.Executors;
 
 public class WebServer {
     private static final FrontendService FRONTEND_SERVICE = new FrontendService();
-
+    private static final String UPLOAD_DIR = "./uploads/";
     private static final int PORT = 9377;
 
     public WebServer() throws IOException {
@@ -32,7 +34,8 @@ public class WebServer {
         LoggerManager.quickLog(WebServer.class, "Setting up endpoint...");
         server.createContext("/", new HomeHandler());
         server.createContext("/api", new ApiHandler(FRONTEND_SERVICE));
-        server.createContext("/api/upload", new FileUploadHandler(FRONTEND_SERVICE, "./uploads/"));
+        server.createContext("/api/upload", new FileUploadHandler(FRONTEND_SERVICE, UPLOAD_DIR));
+        server.createContext("/api/uploads", new FileDownloadHandler(UPLOAD_DIR));
 
         // Use virtual threads or cached thread pool
         server.setExecutor(Executors.newCachedThreadPool());
@@ -58,6 +61,12 @@ public class WebServer {
             LoggerManager.quickLog(WebServer.class, "Sending response...");
             os.write(response);
         }
+    }
+
+    public static void sendResponse(HttpExchange exchange, int statusCode, Object data)
+            throws IOException {
+        String json = JsonUtils.getMapper().writeValueAsString(data);
+        WebServer.sendResponse(exchange, statusCode, json, "application/json");
     }
 
     public static void setCorsHeaders(HttpExchange exchange) {

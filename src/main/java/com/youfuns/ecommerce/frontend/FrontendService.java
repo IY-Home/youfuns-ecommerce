@@ -17,13 +17,12 @@ import com.youfuns.ecommerce.vendor.VendorService;
 import com.youfuns.exceptions.AccessDeniedException;
 import com.youfuns.exceptions.IllegalFieldException;
 import com.youfuns.paramtypes.*;
+import com.youfuns.paramtypes.Currency;
 
 import java.math.BigDecimal;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import java.time.LocalDate;
+import java.util.stream.Collectors;
 
 public final class FrontendService {
     private final UserRepositoryService userRepositoryService;
@@ -743,7 +742,7 @@ public final class FrontendService {
         }
     }
 
-    public ResultPayload<Cart> getCart(JsonWebToken jwt) {
+    public ResultPayload<List<ProductList.PublicEntry>> getCart(JsonWebToken jwt) {
         LoggerManager.quickLog(this, "Called getCart...");
 
         if (jwt == null) {
@@ -756,7 +755,6 @@ public final class FrontendService {
         }
 
         User user = userOpt.get();
-        RoleToken token = user.getToken();
 
         // Check if user has a cart, create if not
         Optional<ProductList> cartOpt = productListRepository.findByUserId(user.getId(), Cart.class);
@@ -768,7 +766,7 @@ public final class FrontendService {
             cart = (Cart) cartOpt.get();
         }
 
-        return new ResultPayload<>(new ResultReturn(ResultReturn.Result.SUCCESS, "Cart fetched."), cart);
+        return new ResultPayload<>(new ResultReturn(ResultReturn.Result.SUCCESS, "Cart fetched."), cart.getEntries(user.getToken()));
     }
 
     public ResultReturn addToCart(JsonWebToken jwt, AddToCartPayload payload) {
@@ -913,7 +911,7 @@ public final class FrontendService {
 
 // ============= WISHLIST FUNCTIONS =============
 
-    public ResultPayload<Wishlist> getWishlist(JsonWebToken jwt) {
+    public ResultPayload<List<ProductList.PublicEntry>> getWishlist(JsonWebToken jwt) {
         LoggerManager.quickLog(this, "Called getWishlist...");
 
         if (jwt == null) {
@@ -926,7 +924,6 @@ public final class FrontendService {
         }
 
         User user = userOpt.get();
-        RoleToken token = user.getToken();
 
         Optional<ProductList> wishlistOpt = productListRepository.findByUserId(user.getId(), Wishlist.class);
         Wishlist wishlist;
@@ -937,7 +934,7 @@ public final class FrontendService {
             wishlist = (Wishlist) wishlistOpt.get();
         }
 
-        return new ResultPayload<>(new ResultReturn(ResultReturn.Result.SUCCESS, "Wishlist fetched."), wishlist);
+        return new ResultPayload<>(new ResultReturn(ResultReturn.Result.SUCCESS, "Wishlist fetched."), wishlist.getEntries(user.getToken()));
     }
 
     public ResultReturn addToWishlist(JsonWebToken jwt, AddToWishlistPayload payload) {
@@ -1827,16 +1824,11 @@ public final class FrontendService {
         User user = userOpt.get();
         RoleToken token = user.getToken();
 
-        // Check vendor permission
+        // Check permission
         try {
-            PermissionChecker.checkPermission(token, Permission.CREATE_PRODUCT);
+            PermissionChecker.checkPermissionWithUser(token, user.getId(), Permission.CREATE_PRODUCT);
         } catch (AccessDeniedException e) {
             return new ResultReturn(ResultReturn.Result.FAILURE, "Insufficient permissions to create product.");
-        }
-
-        // Check if vendorId matches the authenticated user
-        if (!user.getId().equals(payload.vendorId())) {
-            return new ResultReturn(ResultReturn.Result.FAILURE, "Vendor ID does not match authenticated user.");
         }
 
         // Check if user has an active vendor status
@@ -1844,16 +1836,9 @@ public final class FrontendService {
             return new ResultReturn(ResultReturn.Result.FAILURE, "Vendor is not active. Please wait for admin approval.");
         }
 
-        // Check SKU uniqueness
-        Sku sku = new Sku(payload.sku());
-        if (productRepositoryService.productExistsBySku(sku)) {
-            return new ResultReturn(ResultReturn.Result.FAILURE, "SKU already exists.");
-        }
-
         try {
             ResultReturn result = productRepositoryService.createProduct(jwt, payload);
             if (result.isSuccess()) {
-                // Update vendor's total products count via service
                 vendorRepositoryService.incrementVendorProductCount(user.getId());
             }
             return result;
@@ -1882,6 +1867,120 @@ public final class FrontendService {
     public ResultPayload<List<Product.PublicProduct>> searchProductsPublic(String query) {
         LoggerManager.quickLog(this, "Called searchProductsPublic...");
         return productRepositoryService.searchProductsPublic(query);
+    }
+
+    public ResultPayload<List<Product.PublicProduct>> searchProductsPublicFull(
+            String query,
+            Double minPrice,
+            Double maxPrice,
+            String category,
+            String sortBy,
+            String sortOrder,
+            Integer limit,
+            Integer offset
+    ) {
+        LoggerManager.quickLog(this, "Called searchProductsPublicFull...");
+        LoggerManager.quickLog(this, "  query: " + query);
+        LoggerManager.quickLog(this, "  minPrice: " + minPrice);
+        LoggerManager.quickLog(this, "  maxPrice: " + maxPrice);
+        LoggerManager.quickLog(this, "  subcategory: " + category);
+        LoggerManager.quickLog(this, "  sortBy: " + sortBy);
+        LoggerManager.quickLog(this, "  sortOrder: " + sortOrder);
+        LoggerManager.quickLog(this, "  limit: " + limit);
+        LoggerManager.quickLog(this, "  offset: " + offset);
+
+        // 1. Get all products (or filter by category if provided)
+        List<Product.PublicProduct> results;
+        if (category != null && !category.isBlank()) {
+            Subcategory subcategory = Subcategory.fromString(category);
+            if (subcategory == null) {
+                return new ResultPayload<>(
+                        new ResultReturn(ResultReturn.Result.FAILURE, "Invalid subcategory: " + category + ". You may have entered a category instead."),
+                        List.of()
+                );
+            }
+            ResultPayload<List<Product.PublicProduct>> categoryResult = productRepositoryService.getProductsByCategoryPublic(subcategory);
+            results = categoryResult.payload() != null ? categoryResult.payload() : List.of();
+        } else {
+            ResultPayload<List<Product.PublicProduct>> allResult = productRepositoryService.listAllProductsPublic();
+            results = allResult.payload() != null ? allResult.payload() : List.of();
+        }
+
+        // 2. Filter by search query (name or description)
+        if (query != null && !query.isBlank()) {
+            String lowerQuery = query.toLowerCase();
+            results = results.stream()
+                    .filter(p -> {
+                        boolean nameMatch = p.name() != null && p.name().toLowerCase().contains(lowerQuery);
+                        boolean descMatch = p.shortDescription() != null && p.shortDescription().toLowerCase().contains(lowerQuery);
+                        return nameMatch || descMatch;
+                    })
+                    .toList();
+        }
+
+        // 3. Filter by price range
+        if (minPrice != null || maxPrice != null) {
+            results = results.stream()
+                    .filter(p -> {
+                        double price = p.price().doubleValue();
+                        boolean aboveMin = minPrice == null || price >= minPrice;
+                        boolean belowMax = maxPrice == null || price <= maxPrice;
+                        return aboveMin && belowMax;
+                    })
+                    .toList();
+        }
+
+        // 4. Sort
+        if (sortBy != null && !sortBy.isBlank()) {
+            Comparator<Product.PublicProduct> comparator = getComparator(sortBy);
+            if (comparator != null) {
+                if ("desc".equalsIgnoreCase(sortOrder)) {
+                    comparator = comparator.reversed();
+                }
+                results = results.stream()
+                        .sorted(comparator)
+                        .toList();
+            }
+        }
+
+        // 5. Paginate
+        int total = results.size();
+        if (offset != null && offset > 0) {
+            results = results.stream()
+                    .skip(offset)
+                    .toList();
+        }
+        if (limit != null && limit > 0) {
+            results = results.stream()
+                    .limit(limit)
+                    .toList();
+        }
+
+        LoggerManager.quickLog(this, "Search completed. Found " + total + " results, returning " + results.size() + ".");
+
+        return new ResultPayload<>(
+                new ResultReturn(ResultReturn.Result.SUCCESS, "Search completed."),
+                results
+        );
+    }
+
+// ============= HELPER METHOD FOR SORTING =============
+
+    private Comparator<Product.PublicProduct> getComparator(String sortBy) {
+        return switch (sortBy.toLowerCase()) {
+            case "name" -> Comparator.comparing(Product.PublicProduct::name, Comparator.nullsLast(String::compareToIgnoreCase));
+            case "price" -> Comparator.comparing(Product.PublicProduct::price, Comparator.nullsLast(Comparator.naturalOrder()));
+            case "rating" -> Comparator.comparing(Product.PublicProduct::averageRating, Comparator.nullsLast(Comparator.naturalOrder()));
+            case "created" -> Comparator.comparing(Product.PublicProduct::createdAt, Comparator.nullsLast(Comparator.naturalOrder()));
+            default -> null;
+        };
+    }
+
+    public ResultPayload<List<Subcategory.FullCategory>> getAllCategories() {
+        List<Subcategory.FullCategory> allFullCategories = Arrays.stream(Subcategory.values())
+                .map(Subcategory::getFullCategory)
+                .collect(Collectors.toList());
+        return new ResultPayload<>(new ResultReturn(ResultReturn.Result.SUCCESS, "Categories fetched."), allFullCategories);
     }
 
     public ResultPayload<Product.PublicProduct> getProductPublic(UUID productId) {
@@ -2612,7 +2711,7 @@ public final class FrontendService {
 
         User admin = adminOpt.get();
 
-        // Check if vendor exists and is inactive
+        // Check if vendor exists
         if (!vendorRepositoryService.isVendorRegistered(userId)) {
             return new ResultReturn(ResultReturn.Result.FAILURE, "Vendor not found.");
         }
@@ -2635,28 +2734,26 @@ public final class FrontendService {
             }
         }
 
-        // STEP 1: Activate vendor service (admin uses its own token)
+        // STEP 1: Activate vendor service (admin uses fresh token)
         RoleToken adminToken1 = admin.getToken();
         ResultReturn step1 = target.approveVendorStep1(adminToken1);
         if (!step1.isSuccess()) {
             return step1;
         }
 
-        // STEP 2: Add VENDOR role (admin uses its own token)
+        vendorRepositoryService.updateVendor(userId, target.getVendorService());
+
+        // STEP 2: Add VENDOR role (admin uses fresh token)
         RoleToken adminToken2 = admin.getToken();
         ResultReturn step2 = target.approveVendorStep2(adminToken2);
         if (!step2.isSuccess()) {
             return step2;
         }
 
-        // STEP 3: Update repository status (admin uses its own token)
+        // STEP 3: Update repository status directly (admin uses fresh token)
         RoleToken adminToken3 = admin.getToken();
-        ResultReturn step3 = target.approveVendorStep3(adminToken3);
-        if (!step3.isSuccess()) {
-            return step3;
-        }
 
-        // Update vendor repository
+        // Update vendor repository to set active
         ResultReturn repoResult = vendorRepositoryService.approveVendorStep3(adminToken3, userId);
         if (!repoResult.isSuccess()) {
             return repoResult;

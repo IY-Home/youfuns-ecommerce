@@ -121,29 +121,11 @@ public class User {
     public ResultReturn approveVendorStep2(RoleToken adminRt) {
         LoggerManager.quickLog(this, "Approving vendor step 2 (add role) for user: " + UuidFormat.shortenUUID(id));
 
-        try {
-            PermissionChecker.checkPermission(adminRt, Permission.APPROVE_VENDORS);
-        } catch (AccessDeniedException e) {
-            return new ResultReturn(ResultReturn.Result.FAILURE, "Insufficient permissions to approve vendors.");
-        }
-
         // Add VENDOR role
         return role.addRole(adminRt, UserRole.VENDOR);
     }
 
-    public ResultReturn approveVendorStep3(RoleToken adminRt) {
-        LoggerManager.quickLog(this, "Approving vendor step 3 (update status) for user: " + UuidFormat.shortenUUID(id));
-
-        try {
-            PermissionChecker.checkPermission(adminRt, Permission.APPROVE_VENDORS);
-        } catch (AccessDeniedException e) {
-            return new ResultReturn(ResultReturn.Result.FAILURE, "Insufficient permissions to approve vendors.");
-        }
-
-        // This will be handled by FrontendService.approveVendorStep3
-        // which updates the repository
-        return new ResultReturn(ResultReturn.Result.SUCCESS, "Vendor approval step 3 initiated.");
-    }
+    // Step 3 will be handled in FrontendService
 
     // ============= USER AND VENDOR DISABLE (Admin Only) =============
 

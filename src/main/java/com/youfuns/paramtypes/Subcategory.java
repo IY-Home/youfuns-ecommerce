@@ -194,4 +194,10 @@ public enum Subcategory {
     public String toString() {
         return getDisplayName();
     }
+
+    public record FullCategory(Category category, Subcategory subcategory) {};
+
+    public FullCategory getFullCategory() {
+        return new FullCategory(this.parentCategory, this);
+    }
 }

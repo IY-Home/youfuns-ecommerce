@@ -11,7 +11,6 @@ import java.util.UUID;
 
 public record ProductCreatePayload(
         // ===== IDENTIFIERS =====
-        UUID vendorId,
         String sku,
 
         // ===== BASIC INFORMATION =====

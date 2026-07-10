@@ -26,6 +26,9 @@ public abstract class ProductList {
         }
     }
 
+    // Public entry with just UUID (for JSON serialization)
+    public record PublicEntry(UUID productId, LocalDateTime addedAt, int quantity) {}
+
     public ProductList() {
         this.listId = UUID.randomUUID();
         this.entries = new ArrayList<>();
@@ -36,10 +39,21 @@ public abstract class ProductList {
 
     // ============= READ OPERATIONS =============
 
-    public List<Entry> getEntries(RoleToken rt) {
+    public List<Entry> getEntriesProduct(RoleToken rt) {
         checkPermission(rt);
         LoggerManager.quickLog(this, "Returning " + entries.size() + " entries from " + getClass().getSimpleName());
         return List.copyOf(entries);
+    }
+
+    public List<PublicEntry> getEntries(RoleToken rt) {
+        LoggerManager.quickLog(this, "Returning " + entries.size() + " entries from " + getClass().getSimpleName());
+        return entries.stream()
+                .map(entry -> new PublicEntry(
+                        entry.product().getProductIdPublic(),
+                        entry.addedAt(),
+                        entry.quantity()
+                ))
+                .toList();
     }
 
     public Optional<Entry> findEntryByProductId(RoleToken rt, UUID productId) {

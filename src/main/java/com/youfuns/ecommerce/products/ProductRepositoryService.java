@@ -50,11 +50,6 @@ public class ProductRepositoryService {
             return new ResultReturn(ResultReturn.Result.FAILURE, "Insufficient permissions to create product.");
         }
 
-        // Check if vendorId matches the authenticated user
-        if (!user.getId().equals(payload.vendorId())) {
-            return new ResultReturn(ResultReturn.Result.FAILURE, "Vendor ID does not match authenticated user.");
-        }
-
         // Check SKU uniqueness
         Sku sku = new Sku(payload.sku());
         if (productRepository.existsBySku(sku)) {
@@ -62,7 +57,7 @@ public class ProductRepositoryService {
         }
 
         try {
-            Product product = new Product(payload);
+            Product product = new Product(payload, user.getId());
             return productRepository.insert(product);
         } catch (IllegalFieldException e) {
             return new ResultReturn(ResultReturn.Result.FAILURE, e.getMessage());

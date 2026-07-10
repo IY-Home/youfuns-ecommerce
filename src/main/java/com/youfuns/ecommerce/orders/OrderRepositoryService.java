@@ -67,7 +67,7 @@ public class OrderRepositoryService {
         List<Order.OrderItem> orderItems = new ArrayList<>();
         BigDecimal total = BigDecimal.ZERO;
 
-        for (ProductList.Entry entry : cart.getEntries(token)) {
+        for (ProductList.Entry entry : cart.getEntriesProduct(token)) {
             Product product = entry.product();
             int quantity = entry.quantity();
             BigDecimal price = product.getPricePublic();

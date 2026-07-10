@@ -47,7 +47,7 @@ public class FileUploadHandler implements HttpHandler {
         }
 
         if (!"POST".equals(exchange.getRequestMethod())) {
-            sendMapResponse(exchange, 405, Map.of("error", "Method Not Allowed"));
+            sendResponse(exchange, 405, Map.of("error", "Method Not Allowed"));
             return;
         }
 
@@ -69,7 +69,7 @@ public class FileUploadHandler implements HttpHandler {
                 handleProductThumbnailUpload(exchange);
                 break;
             default:
-                sendMapResponse(exchange, 404, Map.of("error", "Not Found"));
+                sendResponse(exchange, 404, Map.of("error", "Not Found"));
         }
     }
 
@@ -144,7 +144,7 @@ public class FileUploadHandler implements HttpHandler {
             // Extract JWT from header
             String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                sendMapResponse(exchange, 401, Map.of("error", "Missing or invalid Authorization header"));
+                sendResponse(exchange, 401, Map.of("error", "Missing or invalid Authorization header"));
                 return null;
             }
             JsonWebToken jwt = new JsonWebToken(authHeader.substring(7));
@@ -176,18 +176,18 @@ public class FileUploadHandler implements HttpHandler {
             }
 
             if (filePath == null) {
-                sendMapResponse(exchange, 400, Map.of("error", "No file uploaded"));
+                sendResponse(exchange, 400, Map.of("error", "No file uploaded"));
                 return null;
             }
             return new JwtAndPath(jwt, fileName);
 
         } catch (FileUploadException e) {
             LoggerManager.quickLog(this, "File upload failed: " + e.getMessage());
-            sendMapResponse(exchange, 400, Map.of("error", "File upload failed: " + e.getMessage()));
+            sendResponse(exchange, 400, Map.of("error", "File upload failed: " + e.getMessage()));
             return null;
         } catch (Exception e) {
             LoggerManager.quickLog(this, "Error: " + e.getMessage());
-            sendMapResponse(exchange, 500, Map.of("error", "Internal server error"));
+            sendResponse(exchange, 500, Map.of("error", "Internal server error"));
             return null;
         }
     }
@@ -201,7 +201,7 @@ public class FileUploadHandler implements HttpHandler {
         try {
             String authHeader = exchange.getRequestHeaders().getFirst("Authorization");
             if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                sendMapResponse(exchange, 401, Map.of("error", "Missing or invalid Authorization header"));
+                sendResponse(exchange, 401, Map.of("error", "Missing or invalid Authorization header"));
                 return null;
             }
             JsonWebToken jwt = new JsonWebToken(authHeader.substring(7));
@@ -235,12 +235,12 @@ public class FileUploadHandler implements HttpHandler {
             }
 
             if (productId == null) {
-                sendMapResponse(exchange, 400, Map.of("error", "Product ID is required"));
+                sendResponse(exchange, 400, Map.of("error", "Product ID is required"));
                 return null;
             }
 
             if (filePath == null) {
-                sendMapResponse(exchange, 400, Map.of("error", "No file uploaded"));
+                sendResponse(exchange, 400, Map.of("error", "No file uploaded"));
                 return null;
             }
 
@@ -248,11 +248,11 @@ public class FileUploadHandler implements HttpHandler {
 
         } catch (FileUploadException e) {
             LoggerManager.quickLog(this, "File upload failed: " + e.getMessage());
-            sendMapResponse(exchange, 400, Map.of("error", "File upload failed: " + e.getMessage()));
+            sendResponse(exchange, 400, Map.of("error", "File upload failed: " + e.getMessage()));
             return null;
         } catch (Exception e) {
             LoggerManager.quickLog(this, "Error: " + e.getMessage());
-            sendMapResponse(exchange, 500, Map.of("error", "Internal server error"));
+            sendResponse(exchange, 500, Map.of("error", "Internal server error"));
             return null;
         }
     }
@@ -271,9 +271,5 @@ public class FileUploadHandler implements HttpHandler {
             return filename.substring(lastDot);
         }
         return ".png"; // default
-    }
-
-    private void sendMapResponse(HttpExchange exchange, int statusCode, Map<String, String> map) throws IOException {
-        sendResponse(exchange, statusCode, JsonUtils.toJson(map), "application/json");
     }
 }
