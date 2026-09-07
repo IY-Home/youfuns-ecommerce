@@ -1,4 +1,4 @@
-package com.youfuns.auth;
+package com.youfuns.auth.rbac;
 
 import com.youfuns.logger.LoggerManager;
 
@@ -11,7 +11,7 @@ public record ResultReturn(Result result, String message) {
         }
     }
     public ResultReturn {
-        LoggerManager.quickLog(this, "Creating ResultReturn with result: " + result + ", message: " + message);
+        // LoggerManager.quickLog(this, "Creating ResultReturn with result: " + result + ", message: " + message);
     }
     public boolean isSuccess() {
         return result.isSuccess;

@@ -1,4 +1,4 @@
-package com.youfuns.auth;
+package com.youfuns.auth.login;
 
 import com.password4j.Argon2Function;
 import com.password4j.Password;

@@ -1,4 +1,4 @@
-package com.youfuns.auth;
+package com.youfuns.auth.rbac;
 
 public class AccessDeniedException extends RuntimeException {
     public AccessDeniedException(String message) {

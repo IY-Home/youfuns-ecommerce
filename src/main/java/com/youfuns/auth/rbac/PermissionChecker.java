@@ -1,16 +1,12 @@
-package com.youfuns.auth;
+package com.youfuns.auth.rbac;
 
 import com.youfuns.logger.LoggerManager;
 import com.youfuns.logger.SimpleLogger;
 
-import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 public final class PermissionChecker<T extends Enum<T> & Permission> {
     @FunctionalInterface
@@ -21,10 +17,19 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
     public interface PermissionHandler {
         boolean checkUser(UUID executor);
     }
+    @FunctionalInterface
+    public interface GenericUserPermissionHandler {
+        boolean checkUser(Permission permission, UUID executor, UUID target);
+    }
+    @FunctionalInterface
+    public interface GenericPermissionHandler {
+        boolean checkUser(Permission permission, UUID executor);
+    }
 
     private final Map<T, UserPermissionHandler> userPermHandlers;
     private final Map<T, PermissionHandler> permHandlers;
-
+    private GenericUserPermissionHandler userPermHandler;
+    private GenericPermissionHandler permHandler;
     private final TokenManager tokenManager;
 
     private static final boolean STRICT_CHECK = false;
@@ -33,6 +38,8 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
         userPermHandlers = new HashMap<>();
         permHandlers = new HashMap<>();
         tokenManager = new TokenManager();
+        userPermHandler = (a, b, c) -> { return true; };
+        permHandler = (a, b) -> { return true; };
     }
 
     public boolean checkPermission(RoleToken rt, T requiredPermission) {
@@ -53,7 +60,7 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
             LoggerManager.quickLog(PermissionChecker.class, "The provided token is null", SimpleLogger.Level.WARN);
             return false;
         }
-        if (!checkPermissionOnly(uh, requiredPermission) || !checkUserHandler(requiredPermission, uh.getId(), target)) {
+        if (!checkPermissionOnly(uh, requiredPermission) || !checkUserHandler(requiredPermission, uh.id(), target)) {
             LoggerManager.quickLog(
                     PermissionChecker.class,
                     ("Permission denied for permission with specific target user."),
@@ -69,28 +76,38 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
             LoggerManager.quickLog(PermissionChecker.class, "The provided token is null", SimpleLogger.Level.WARN);
             return false;
         }
-        return checkPermissionOnly(uh, requiredPermission) && checkHandler(requiredPermission, uh.getId());
+        return checkPermissionOnly(uh, requiredPermission) && checkHandler(requiredPermission, uh.id());
     }
 
-    PermissionChecker<T> onPermission(T perm, PermissionHandler permHandler) {
+    public PermissionChecker<T> onPermission(T perm, PermissionHandler permHandler) {
         if (perm == null) return this;
         permHandlers.put(perm, permHandler);
         return this;
     }
 
-    PermissionChecker<T> onUserPermission(T perm, UserPermissionHandler userPermHandler) {
+    public PermissionChecker<T> onUserPermission(T perm, UserPermissionHandler userPermHandler) {
         if (perm == null) return this;
         if (!perm.needsSpecificUser()) return this;
         userPermHandlers.put(perm, userPermHandler);
         return this;
     }
 
+    public PermissionChecker<T> onPermission(GenericPermissionHandler permHandler) {
+        this.permHandler = permHandler;
+        return this;
+    }
+
+    public PermissionChecker<T> onUserPermission(GenericUserPermissionHandler userPermHandler) {
+        this.userPermHandler = userPermHandler;
+        return this;
+    }
+
     private boolean checkPermissionOnly(UserRoleHolder<T> uh, T requiredPermission) {
         LoggerManager.quickLog(PermissionChecker.class, "Checking permission " + requiredPermission + " for user");
         boolean hasPermission = false;
-        for (UserRole<T> userRole : uh.getRoles()) {
+        for (UserRole<T> userRole : uh.roles()) {
             if (userRole.hasPermission(requiredPermission)) {
-                LoggerManager.quickLog(PermissionChecker.class, "Role " + userRole.getName() + " has permission", SimpleLogger.Level.DEBUG);
+                LoggerManager.quickLog(PermissionChecker.class, "Role " + userRole.name() + " has permission", SimpleLogger.Level.DEBUG);
                 /* for (Permission permission : requiredPermission.implications()) {
                     if (!userRole.hasPermission((T) permission)) {
                         LoggerManager.quickLog(PermissionChecker.class, "Role does not have implied permission " + permission.name() + ", moving on to next role", SimpleLogger.Level.DEBUG);
@@ -110,11 +127,11 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
 
     private boolean checkHandler(T requiredPermission, UUID userId) {
         if (!permHandlers.containsKey(requiredPermission)) return true;
-        return permHandlers.get(requiredPermission).checkUser(userId);
+        return permHandlers.get(requiredPermission).checkUser(userId) && permHandler.checkUser(requiredPermission, userId);
     }
     private boolean checkUserHandler(T requiredPermission, UUID userId, UUID targetId) {
         if (!userPermHandlers.containsKey(requiredPermission) || !requiredPermission.needsSpecificUser()) return true;
-        return userPermHandlers.get(requiredPermission).checkUser(userId, targetId);
+        return userPermHandlers.get(requiredPermission).checkUser(userId, targetId) && userPermHandler.checkUser(requiredPermission, userId, targetId);
     }
 
     public void checkPermissionAndThrow(RoleToken rt, T requiredPermission) {
@@ -144,8 +161,8 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
         }
 
         public <T extends Enum<T> & Permission> RoleToken issueToken(UserRoleHolder<T> uh) {
-            LoggerManager.quickLog(this, "Issuing token to user with roles " + uh.getRoles().toString());
-            RoleToken token = new RoleToken(UUID.randomUUID(), uh.getId());
+            LoggerManager.quickLog(this, "Issuing token to user with roles " + uh.roles().toString());
+            RoleToken token = new RoleToken(UUID.randomUUID(), uh.id());
             activeTokens.put(token, uh);
             LoggerManager.quickLog(this, "Token issued.");
             return token;

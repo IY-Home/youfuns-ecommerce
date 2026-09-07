@@ -1,6 +1,6 @@
 package com.youfuns.repo;
 
-import com.youfuns.auth.ResultReturn;
+import com.youfuns.auth.rbac.ResultReturn;
 
 import java.util.List;
 import java.util.Map;

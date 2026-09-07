@@ -1,5 +1,6 @@
-package com.youfuns.auth;
+package com.youfuns.auth.login;
 
+import com.youfuns.auth.rbac.ResultReturn;
 import com.youfuns.logger.LoggerManager;
 import com.youfuns.logger.SimpleLogger;
 

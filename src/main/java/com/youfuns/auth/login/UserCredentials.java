@@ -1,7 +1,8 @@
-package com.youfuns.auth;
+package com.youfuns.auth.login;
 
-import com.youfuns.cms.paramtypes.IllegalFieldException;
-import com.youfuns.cms.paramtypes.ParamType;
+import com.youfuns.auth.rbac.DefaultPermissions;
+import com.youfuns.auth.rbac.ResultReturn;
+import com.youfuns.auth.rbac.RoleToken;
 import com.youfuns.logger.LoggerManager;
 import com.youfuns.logger.SimpleLogger;
 import com.youfuns.webserver.JwtService;
@@ -16,8 +17,10 @@ public final class UserCredentials {
     private final UUID id;
     private final Set<String> usernames;
     private String passwordHash;
-    private boolean isLocked;
-    private Instant lockoutExpiry;
+    private boolean passwordLocked;
+    private boolean adminLocked;
+    private Instant passwordLockoutExpiry;
+    private Instant adminLockoutExpiry;
     private final AtomicInteger failedAttempts = new AtomicInteger(0);
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_DURATION_SECONDS = 300; // 5 minutes
@@ -25,19 +28,28 @@ public final class UserCredentials {
     private static Function<String, String> passwordHasher = HashingService::argon2Hash;
     private static BiFunction<String, String, Boolean> passwordValidator = HashingService::verifyArgon2Hash;
 
+    public static final ResultReturn genericLoginFailure = new ResultReturn(ResultReturn.Result.FAILURE, "Login failed");
+
     private static DefaultPermissions<?> defaultPermissions;
 
     static void setDefaultPermissions(DefaultPermissions<?> defaultPermissions) {
         UserCredentials.defaultPermissions = defaultPermissions;
     }
 
-    static void setPasswordHasher(Function<String, String> passwordHasher, BiFunction<String, String, Boolean> passwordValidator) {
+    public static void setPasswordHasher(Function<String, String> passwordHasher, BiFunction<String, String, Boolean> passwordValidator) {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        if (stackTrace.length >= 3) {
+            String callerClassName = stackTrace[2].getClassName();
+            if (!callerClassName.startsWith("com.youfuns.auth.")) throw new IllegalCallerException("This method cannot be called from outside package");
+        } else {
+            throw new IllegalCallerException("This method cannot be called from outside package");
+        }
         UserCredentials.passwordHasher = passwordHasher;
         UserCredentials.passwordValidator = passwordValidator;
     }
 
-    public List<String> getUsernames() {
-        return List.copyOf(usernames);
+    public Set<String> getUsernames() {
+        return Set.copyOf(usernames);
     }
 
     public UserCredentials(UUID id, Set<String> usernames, String password) {
@@ -46,7 +58,7 @@ public final class UserCredentials {
         LoggerManager.quickLog(this, "Hashing usernames and password...");
         this.usernames = new HashSet<>(Set.copyOf(usernames));
         ResultReturn passwordCheck = PasswordStrengthValidator.validatePasswordWithMessage(password);
-        if (!passwordCheck.isSuccess()) throw new IllegalFieldException(passwordCheck.message(), ParamType.PASSWORD);
+        if (!passwordCheck.isSuccess()) throw new IllegalArgumentException(passwordCheck.message());
         this.passwordHash = passwordHasher.apply(password);
         LoggerManager.quickLog(this, "Created UserCredentials instance");
     }
@@ -74,14 +86,24 @@ public final class UserCredentials {
     private ResultReturn validateLogin(String username, String password) {
         LoggerManager.quickLog(this, "Processing login for user " + username);
 
-        if (isLocked) {
-            if (Instant.now().isBefore(lockoutExpiry)) {
+        if (passwordLocked) {
+            if (Instant.now().isBefore(passwordLockoutExpiry)) {
                 LoggerManager.quickLog(this, "Login attempt on locked account", SimpleLogger.Level.WARN);
                 return new ResultReturn(ResultReturn.Result.FAILURE, "Account is temporarily locked. Try again later.");
             } else {
                 // Lockout expired, reset
-                isLocked = false;
+                passwordLocked = false;
                 failedAttempts.set(0);
+            }
+        }
+
+        if (adminLocked) {
+            if (Instant.now().isBefore(adminLockoutExpiry)) {
+                LoggerManager.quickLog(this, "Login attempt on locked account", SimpleLogger.Level.WARN);
+                return new ResultReturn(ResultReturn.Result.FAILURE, "Account is locked by administrator.");
+            } else {
+                // Lockout expired, reset
+                adminLocked = false;
             }
         }
 
@@ -105,31 +127,35 @@ public final class UserCredentials {
             }
             // Lock account if too many failures
             if (attempts >= MAX_FAILED_ATTEMPTS) {
-                lockAccount();
+                lockAccountForPassword();
                 return new ResultReturn(ResultReturn.Result.FAILURE, "Account is temporarily locked");
             }
 
             // Return generic message
-            return new ResultReturn(ResultReturn.Result.FAILURE, "Login failed");
+            return genericLoginFailure;
         }
     }
 
-    private void lockAccount() {
-        lockAccount(LOCKOUT_DURATION_SECONDS);
+    private void lockAccountForPassword() {
+        passwordLocked = true;
+        passwordLockoutExpiry = Instant.now().plusSeconds(LOCKOUT_DURATION_SECONDS);
+        LoggerManager.quickLog(this, "Account locked for user for " + LOCKOUT_DURATION_SECONDS + " seconds", SimpleLogger.Level.WARN);
+
     }
 
     private void lockAccount(int seconds) {
-        isLocked = true;
-        lockoutExpiry = Instant.now().plusSeconds(seconds);
+        adminLocked = true;
+        adminLockoutExpiry = Instant.now().plusSeconds(seconds);
         LoggerManager.quickLog(this, "Account locked for user for " + seconds + " seconds", SimpleLogger.Level.WARN);
     }
 
-    // For when you have a specific permission needed
     public void unlockAccount(RoleToken rt) {
         LoggerManager.quickLog(this, "Called unlock account for user");
         defaultPermissions.checkManageUsers(rt);
-        isLocked = false;
-        lockoutExpiry = null;
+        passwordLocked = false;
+        adminLocked = false;
+        passwordLockoutExpiry = null;
+        adminLockoutExpiry = null;
         failedAttempts.set(0);
         LoggerManager.quickLog(this, "Account unlocked by admin for user", SimpleLogger.Level.INFO);
     }
@@ -203,7 +229,6 @@ public final class UserCredentials {
 
         defaultPermissions.checkManageUsers(rt);
 
-
         if (usernames.contains(username)) {
             return new ResultReturn(ResultReturn.Result.FAILURE, "Username already exists.");
         }
@@ -230,39 +255,27 @@ public final class UserCredentials {
     // ============= HELPER METHODS =============
 
     public boolean isLocked(RoleToken rt) {
-        LoggerManager.quickLog(this, "Called isLocked for user");
+        LoggerManager.quickLog(this, "Called passwordLocked for user");
         defaultPermissions.checkManageSelf(rt, this.id);
-        if (isLocked && Instant.now().isAfter(lockoutExpiry)) {
+        if (adminLocked && Instant.now().isAfter(adminLockoutExpiry)) {
             // Auto-unlock if lockout expired
-            isLocked = false;
-            lockoutExpiry = null;
+            adminLocked = false;
+            adminLockoutExpiry = null;
             failedAttempts.set(0);
         }
-        return isLocked;
-    }
-
-    public int getRemainingAttempts(RoleToken rt) {
-        defaultPermissions.checkManageSelf(rt, this.id);
-        LoggerManager.quickLog(this, "Called getRemainingAttempts for user");
-        return Math.max(0, MAX_FAILED_ATTEMPTS - failedAttempts.get());
+        return adminLocked;
     }
 
     public boolean isLockedAdmin(RoleToken rt) {
-        LoggerManager.quickLog(this, "Called isLocked for user by admin");
+        LoggerManager.quickLog(this, "Called passwordLocked for user by admin");
         defaultPermissions.checkManageUsers(rt);
-        if (isLocked && Instant.now().isAfter(lockoutExpiry)) {
+        if (adminLocked && Instant.now().isAfter(adminLockoutExpiry)) {
             // Auto-unlock if lockout expired
-            isLocked = false;
-            lockoutExpiry = null;
+            adminLocked = false;
+            adminLockoutExpiry = null;
             failedAttempts.set(0);
         }
-        return isLocked;
-    }
-
-    public int getRemainingAttemptsAdmin(RoleToken rt) {
-        defaultPermissions.checkManageUsers(rt);
-        LoggerManager.quickLog(this, "Called getRemainingAttempts for user");
-        return Math.max(0, MAX_FAILED_ATTEMPTS - failedAttempts.get());
+        return adminLocked;
     }
 
 }

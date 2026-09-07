@@ -1,6 +1,5 @@
-package com.youfuns.auth;
+package com.youfuns.auth.rbac;
 
-import java.time.Instant;
 import java.util.UUID;
 
 public record RoleToken(UUID id, UUID issuedUser) {

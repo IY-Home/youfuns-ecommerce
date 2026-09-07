@@ -1,17 +1,14 @@
-package com.youfuns.auth;
+package com.youfuns.auth.rbac;
 
 import com.youfuns.logger.LoggerManager;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class UserRoleHolder<P extends Enum<P> & Permission> {
-    private final UUID id;
-    private final Set<UserRole<P>> roles;
-
+public record UserRoleHolder<P extends Enum<P> & Permission>(UUID id, Set<UserRole<P>> roles) {
     private static DefaultPermissions<?> defaultPermissions;
 
-    static void setDefaultPermissions(DefaultPermissions<?> defaultPermissions) {
+    static void setDefaultPermissions(DefaultPermissions defaultPermissions) {
         UserRoleHolder.defaultPermissions = defaultPermissions;
     }
 
@@ -19,10 +16,11 @@ public class UserRoleHolder<P extends Enum<P> & Permission> {
         LoggerManager.quickLog(this, "Creating UserRoleHolder instance...");
         this.id = id;
         this.roles = new HashSet<>(Set.copyOf(roles));
-        LoggerManager.quickLog(this, "Created UserRoleHolder instance with roles " + this.roles.stream().map(UserRole::getName).collect(Collectors.joining(", ")));
+        LoggerManager.quickLog(this, "Created UserRoleHolder instance with roles " + this.roles.stream().map(UserRole::name).collect(Collectors.joining(", ")));
     }
 
-    public Set<UserRole<P>> getRoles() {
+    @Override
+    public Set<UserRole<P>> roles() {
         LoggerManager.quickLog(this, "Getting UserRoles from UserRoleHolder instance...");
         return Set.copyOf(roles);
     }
@@ -43,12 +41,8 @@ public class UserRoleHolder<P extends Enum<P> & Permission> {
         LoggerManager.quickLog(this, "Role " + role + " removed from UserRoleHolder instance by commanding user");
     }
 
-    public UUID getId() {
-        return id;
-    }
-
     @SuppressWarnings("unchecked")
     public RoleToken getToken() {
-        return ((DefaultPermissions<P>)defaultPermissions).issueToken(this);
+        return ((DefaultPermissions<P>) defaultPermissions).issueToken(this);
     }
 }

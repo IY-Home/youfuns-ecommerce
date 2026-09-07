@@ -1,8 +1,9 @@
 package com.youfuns.repo;
 
-import com.youfuns.auth.ResultReturn;
+import com.youfuns.auth.rbac.ResultReturn;
 
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class InMemoryRepository<I, T> implements Repository<I, T> {
@@ -74,5 +75,9 @@ public class InMemoryRepository<I, T> implements Repository<I, T> {
     @Override
     public Map<I, T> findAllById(List<I> ids) {
         return map.entrySet().stream().filter(entry -> ids.contains(entry.getKey())).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
+    }
+
+    public Set<Map.Entry<I, T>> findWhere(Predicate<? super T> predicate) {
+        return map.entrySet().stream().filter(entry -> predicate.test(entry.getValue())).collect(Collectors.toSet());
     }
 }
