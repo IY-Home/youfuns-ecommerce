@@ -1,4 +1,6 @@
-package com.youfuns.auth.rbac;
+package com.youfuns.auth.rbac.dummy;
+
+import com.youfuns.auth.rbac.*;
 
 import java.util.Set;
 import java.util.UUID;
@@ -23,6 +25,6 @@ public class AlwaysTruePermissions<T extends Enum<T> & Permission> extends Defau
 
     @Override
     public RoleToken issueToken(UserRoleHolder<T> uh) {
-        return uh.getToken();
+        return uh == null ? new RoleToken(UUID.randomUUID(), UUID.randomUUID()) : uh.getToken();
     }
 }

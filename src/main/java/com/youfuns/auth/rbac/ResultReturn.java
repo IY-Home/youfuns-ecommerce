@@ -11,9 +11,14 @@ public record ResultReturn(Result result, String message) {
         }
     }
     public ResultReturn {
-        // LoggerManager.quickLog(this, "Creating ResultReturn with result: " + result + ", message: " + message);
+        LoggerManager.quickLog(this, "Creating ResultReturn with result: " + result + ", message: " + message);
     }
     public boolean isSuccess() {
         return result.isSuccess;
+    }
+
+    @Override
+    public String toString() {
+        return "ResultReturn [result=" + result + ", message=" + message + "]";
     }
 }

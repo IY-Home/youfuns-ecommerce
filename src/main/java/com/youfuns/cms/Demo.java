@@ -77,8 +77,8 @@ public class Demo {
         UserCredentialPayload payload = new UserCredentialPayload("TomDoe1", "Xk9#mP2!qL");
         MyUser initialAdmin = new MyUser("Tom Doe", payload);
         authManager.addUser(initialAdmin);
-        System.out.println(loginResultToString(authManager.login("TomDoe1", "wrongpass")));
-        System.out.println(loginResultToString(authManager.login("TomDoe1", "Xk9#mP2!qL")));
+        System.out.println(authManager.login("TomDoe1", "wrongpass").toString());
+        System.out.println(authManager.login("TomDoe1", "Xk9#mP2!qL").toString());
 
         WebServer.create(8080, LoggerManager.INSTANCE.getLogger())
                 .on("/register", exchange -> {
@@ -119,8 +119,5 @@ public class Demo {
                     exchange.send("Approved");
                 })
                 .start();
-    }
-    public static String loginResultToString(UserCredentials.LoginResult loginResult) {
-        return "Success: " + loginResult.isSuccess() + ", result: " + loginResult.resultReturn().result().name() + "(" + loginResult.resultReturn().message() + ")" + ", JWT: " + String.valueOf(loginResult.jwtToken());
     }
 }

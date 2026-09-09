@@ -67,6 +67,11 @@ public final class UserCredentials {
         public boolean isSuccess() {
             return resultReturn.isSuccess();
         }
+        @Override
+        public String toString() {
+            return "LoginResult [Success: " + this.isSuccess() + ", result: " + this.resultReturn().result().name() + "(" + this.resultReturn().message() + ")" + ", JWT: " + String.valueOf(this.jwtToken()) + "]";
+        }
+
     }
 
     // ============= VALIDATION METHODS =============

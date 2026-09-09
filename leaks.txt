@@ -1,0 +1,98 @@
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:09.724 (2026-09-07)
+  objectSize = 256.0 kB
+  objectAge = 4.50 s
+  lastKnownHeapUsage = 4.8 MB
+  object =  [
+    java.util.concurrent.ConcurrentHashMap$Node[65536]
+  ]
+  arrayElements = 65536
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:09.970 (2026-09-07)
+  objectSize = 953.7 MB
+  objectAge = 4.26 s
+  lastKnownHeapUsage = 4.1 MB
+  object =  [
+    byte[1000000000]
+  ]
+  arrayElements = 1000000000
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:09.971 (2026-09-07)
+  objectSize = 24 bytes
+  objectAge = 4.26 s
+  lastKnownHeapUsage = 4.1 MB
+  object =  [
+    java.lang.String
+  ]
+  arrayElements = N/A
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:10.514 (2026-09-07)
+  objectSize = 953.7 MB
+  objectAge = 3.71 s
+  lastKnownHeapUsage = 958.1 MB
+  object =  [
+    byte[1000000000]
+  ]
+  arrayElements = 1000000000
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:11.343 (2026-09-07)
+  objectSize = 953.7 MB
+  objectAge = 2.88 s
+  lastKnownHeapUsage = 1.9 GB
+  object =  [
+    byte[1000000000]
+  ]
+  arrayElements = 1000000000
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:12.496 (2026-09-07)
+  objectSize = 953.7 MB
+  objectAge = 1.73 s
+  lastKnownHeapUsage = 2.8 GB
+  object =  [
+    byte[1000000000]
+  ]
+  arrayElements = 1000000000
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
+jdk.OldObjectSample {
+  startTime = 18:32:14.227 (2026-09-07)
+  allocationTime = 18:32:13.091 (2026-09-07)
+  objectSize = 24 bytes
+  objectAge = 1.14 s
+  lastKnownHeapUsage = 3.7 GB
+  object =  [
+    java.lang.String
+  ]
+  arrayElements = N/A
+  root = N/A
+  eventThread = "main" (javaThreadId = 1)
+}
+
