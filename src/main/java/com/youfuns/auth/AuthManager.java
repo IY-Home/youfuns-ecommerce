@@ -100,6 +100,12 @@ public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permiss
             return this;
         }
 
+        public Builder<PermissionClass, UserClass> enablePasswordStrengthValidation(boolean enable) {
+            UserCredentials.enablePasswordValidation(enable);
+            LoggerManager.quickLog(this, "Set enable password strength validation:");
+            return this;
+        }
+
         public Builder<PermissionClass, UserClass> repository(Repository<UUID, UserClass> userRepository) {
             this.userRepository = userRepository;
             LoggerManager.quickLog(this, "Set repository");

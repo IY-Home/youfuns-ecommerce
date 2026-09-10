@@ -1,5 +1,6 @@
 package com.youfuns.cms;
 
+import com.youfuns.auth.AuthManager;
 import com.youfuns.auth.login.UserCredentials;
 import com.youfuns.auth.rbac.UserRole;
 import com.youfuns.auth.rbac.dummy.AlwaysTruePermissions;
@@ -13,7 +14,6 @@ public class CredsDemo {
     public static void main(String[] args) {
         Set<UserRole<EmptyPerm>> roles = Set.of(new UserRole<>("TEST", Set.of(EmptyPerm.ALL)));
         AlwaysTruePermissions<EmptyPerm> perms = new AlwaysTruePermissions<>(roles);
-
         perms.assignToClasses(UserCredentials.class, UserRoleHolder.class);
 
         UserCredentials userCredentials = new UserCredentials(UUID.randomUUID(), Set.of("TestUser"), "X*fo*@rnc79y#^*F");
@@ -35,6 +35,5 @@ public class CredsDemo {
         System.out.println(userCredentials.changePassword(perms.issueToken(null), "X*fo*@rnc79y#^*F", "new_X*fo*@rnc79y#^*F"));
         System.out.println(userCredentials.login("TestUser", "X*fo*@rnc79y#^*F"));
         System.out.println(userCredentials.login("TestUser", "new_X*fo*@rnc79y#^*F"));
-
     }
 }

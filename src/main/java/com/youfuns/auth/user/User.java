@@ -4,6 +4,7 @@ import com.youfuns.auth.rbac.*;
 import com.youfuns.auth.login.UserCredentials;
 import com.youfuns.logger.LoggerManager;
 
+import java.time.Instant;
 import java.util.Set;
 import java.util.UUID;
 
@@ -13,6 +14,8 @@ public abstract class User<T extends Enum<T> & Permission> {
     private final UserRoleHolder<T> userRoleHolder;
 
     protected static DefaultPermissions<?> defaultPermissions;
+
+    protected final Instant createdDate;
 
     static void setDefaultPermissions(DefaultPermissions defaultPermissions) {
         User.defaultPermissions = defaultPermissions;
@@ -29,6 +32,7 @@ public abstract class User<T extends Enum<T> & Permission> {
         LoggerManager.quickLog(this, "Created UserCredentials");
         this.userRoleHolder = new UserRoleHolder<>(id, initialPermissions == null ? (Set) defaultPermissions.getInitialUserPermissions() : initialPermissions);
         LoggerManager.quickLog(this, "Created UserRoleHolder");
+        this.createdDate = Instant.now();
         LoggerManager.quickLog(this, "User creation complete.");
     }
 

@@ -22,15 +22,18 @@ public final class UserCredentials {
     private Instant passwordLockoutExpiry;
     private Instant adminLockoutExpiry;
     private final AtomicInteger failedAttempts = new AtomicInteger(0);
+
     private static final int MAX_FAILED_ATTEMPTS = 5;
     private static final int LOCKOUT_DURATION_SECONDS = 300; // 5 minutes
 
     private static Function<String, String> passwordHasher = HashingService::argon2Hash;
     private static BiFunction<String, String, Boolean> passwordValidator = HashingService::verifyArgon2Hash;
+    private static boolean validatePasswords = true;
 
     public static final ResultReturn genericLoginFailure = new ResultReturn(ResultReturn.Result.FAILURE, "Login failed");
 
     private static DefaultPermissions<?> defaultPermissions;
+
 
     static void setDefaultPermissions(DefaultPermissions<?> defaultPermissions) {
         UserCredentials.defaultPermissions = defaultPermissions;
@@ -48,6 +51,18 @@ public final class UserCredentials {
         UserCredentials.passwordValidator = passwordValidator;
     }
 
+    public static void enablePasswordValidation(boolean enable) {
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        if (stackTrace.length >= 3) {
+            String callerClassName = stackTrace[2].getClassName();
+            if (!callerClassName.startsWith("com.youfuns.auth."))
+                throw new IllegalCallerException("This method cannot be called from outside package");
+        } else {
+            throw new IllegalCallerException("This method cannot be called from outside package");
+        }
+        validatePasswords = enable;
+    }
+
     public Set<String> getUsernames() {
         return Set.copyOf(usernames);
     }
@@ -57,8 +72,10 @@ public final class UserCredentials {
         this.id = id;
         LoggerManager.quickLog(this, "Hashing usernames and password...");
         this.usernames = new HashSet<>(Set.copyOf(usernames));
-        ResultReturn passwordCheck = PasswordStrengthValidator.validatePasswordWithMessage(password);
-        if (!passwordCheck.isSuccess()) throw new IllegalArgumentException(passwordCheck.message());
+        if (validatePasswords) {
+            ResultReturn passwordCheck = PasswordStrengthValidator.validatePasswordWithMessage(password);
+            if (!passwordCheck.isSuccess()) throw new IllegalArgumentException(passwordCheck.message());
+        }
         this.passwordHash = passwordHasher.apply(password);
         LoggerManager.quickLog(this, "Created UserCredentials instance");
     }
@@ -69,7 +86,7 @@ public final class UserCredentials {
         }
         @Override
         public String toString() {
-            return "LoginResult [Success: " + this.isSuccess() + ", result: " + this.resultReturn().result().name() + "(" + this.resultReturn().message() + ")" + ", JWT: " + String.valueOf(this.jwtToken()) + "]";
+            return "LoginResult [Success=" + this.isSuccess() + ", result=" + this.resultReturn().result().name() + "(" + this.resultReturn().message() + ")" + ", JWT=" + String.valueOf(this.jwtToken()) + "]";
         }
 
     }
