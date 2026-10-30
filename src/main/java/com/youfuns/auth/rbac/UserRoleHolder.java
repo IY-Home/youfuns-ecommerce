@@ -5,18 +5,11 @@ import com.youfuns.logger.LoggerManager;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public record UserRoleHolder<P extends Enum<P> & Permission>(UUID id, Set<UserRole<P>> roles) {
-    private static DefaultPermissions<?> defaultPermissions;
-
-    static void setDefaultPermissions(DefaultPermissions defaultPermissions) {
-        UserRoleHolder.defaultPermissions = defaultPermissions;
-    }
-
-    public UserRoleHolder(UUID id, Set<UserRole<P>> roles) {
+public record UserRoleHolder<P extends Enum<P> & Permission>(UUID id, Set<UserRole<P>> roles, DefaultPermissions<P> defaultPermissions) {
+    public UserRoleHolder {
         LoggerManager.quickLog(this, "Creating UserRoleHolder instance...");
-        this.id = id;
-        this.roles = new HashSet<>(Set.copyOf(roles));
-        LoggerManager.quickLog(this, "Created UserRoleHolder instance with roles " + this.roles.stream().map(UserRole::name).collect(Collectors.joining(", ")));
+        roles = (roles == null) ? new HashSet<>(Set.of()) : new HashSet<>(Set.copyOf(roles));
+        LoggerManager.quickLog(this, "Created UserRoleHolder instance with roles " + roles.stream().map(UserRole::name).collect(Collectors.joining(", ")));
     }
 
     @Override

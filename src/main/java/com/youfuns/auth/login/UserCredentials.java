@@ -1,11 +1,11 @@
 package com.youfuns.auth.login;
 
+import com.youfuns.auth.AuthManager;
 import com.youfuns.auth.rbac.DefaultPermissions;
 import com.youfuns.auth.rbac.ResultReturn;
 import com.youfuns.auth.rbac.RoleToken;
 import com.youfuns.logger.LoggerManager;
 import com.youfuns.logger.SimpleLogger;
-import com.youfuns.webserver.JwtService;
 
 import java.time.Instant;
 import java.util.*;
@@ -23,8 +23,8 @@ public final class UserCredentials {
     private Instant adminLockoutExpiry;
     private final AtomicInteger failedAttempts = new AtomicInteger(0);
 
-    private static final int MAX_FAILED_ATTEMPTS = 5;
-    private static final int LOCKOUT_DURATION_SECONDS = 300; // 5 minutes
+    private static int MAX_FAILED_ATTEMPTS = 5;
+    private static int LOCKOUT_DURATION_SECONDS = 300; // 5 minutes
 
     private static Function<String, String> passwordHasher = HashingService::argon2Hash;
     private static BiFunction<String, String, Boolean> passwordValidator = HashingService::verifyArgon2Hash;
@@ -32,42 +32,47 @@ public final class UserCredentials {
 
     public static final ResultReturn genericLoginFailure = new ResultReturn(ResultReturn.Result.FAILURE, "Login failed");
 
-    private static DefaultPermissions<?> defaultPermissions;
-
-
-    static void setDefaultPermissions(DefaultPermissions<?> defaultPermissions) {
-        UserCredentials.defaultPermissions = defaultPermissions;
-    }
+    private DefaultPermissions<?> defaultPermissions;
 
     public static void setPasswordHasher(Function<String, String> passwordHasher, BiFunction<String, String, Boolean> passwordValidator) {
-        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
-        if (stackTrace.length >= 3) {
-            String callerClassName = stackTrace[2].getClassName();
-            if (!callerClassName.startsWith("com.youfuns.auth.")) throw new IllegalCallerException("This method cannot be called from outside package");
-        } else {
-            throw new IllegalCallerException("This method cannot be called from outside package");
-        }
+        validateCaller();
         UserCredentials.passwordHasher = passwordHasher;
         UserCredentials.passwordValidator = passwordValidator;
     }
 
     public static void enablePasswordValidation(boolean enable) {
+        validateCaller();
+        validatePasswords = enable;
+    }
+
+    public static void setPasswordLockoutPolicy(int maxAttempts, int lockoutSec) {
+        validateCaller();
+        MAX_FAILED_ATTEMPTS = maxAttempts;
+        LOCKOUT_DURATION_SECONDS = lockoutSec;
+    }
+
+    public static void setSessionTokenService(Function<String, String> generateToken, Function<String, String> extractSubject) {
+        validateCaller();
+        SessionTokenService.generateToken = generateToken;
+        SessionTokenService.extractSubject = extractSubject;
+    }
+
+    private static void validateCaller() {
         StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
         if (stackTrace.length >= 3) {
             String callerClassName = stackTrace[2].getClassName();
-            if (!callerClassName.startsWith("com.youfuns.auth."))
+            if (!callerClassName.startsWith(AuthManager.class.getPackage().getName()))
                 throw new IllegalCallerException("This method cannot be called from outside package");
         } else {
             throw new IllegalCallerException("This method cannot be called from outside package");
         }
-        validatePasswords = enable;
     }
 
     public Set<String> getUsernames() {
         return Set.copyOf(usernames);
     }
 
-    public UserCredentials(UUID id, Set<String> usernames, String password) {
+    public UserCredentials(UUID id, Set<String> usernames, String password, DefaultPermissions<?> defaultPermissions) {
         LoggerManager.quickLog(this, "Creating UserCredentials instance...");
         this.id = id;
         LoggerManager.quickLog(this, "Hashing usernames and password...");
@@ -77,6 +82,7 @@ public final class UserCredentials {
             if (!passwordCheck.isSuccess()) throw new IllegalArgumentException(passwordCheck.message());
         }
         this.passwordHash = passwordHasher.apply(password);
+        this.defaultPermissions = defaultPermissions;
         LoggerManager.quickLog(this, "Created UserCredentials instance");
     }
 
@@ -96,13 +102,13 @@ public final class UserCredentials {
         ResultReturn loginResult = validateLogin(username, password);
         String jwt = null;
         if (loginResult.isSuccess()) {
-            jwt = JwtService.generateToken(String.valueOf(this.id));
+            jwt = SessionTokenService.generateToken(String.valueOf(this.id));
         }
         return new LoginResult(loginResult, jwt);
     }
 
     public boolean validateJwt(String jwt) {
-        return JwtService.validateToken(jwt);
+        return SessionTokenService.validateToken(jwt);
     }
 
     private ResultReturn validateLogin(String username, String password) {
@@ -137,6 +143,8 @@ public final class UserCredentials {
         if (authenticated) {
             // Reset failed attempts on success
             failedAttempts.set(0);
+            passwordLocked = false;
+            adminLocked = false;
             LoggerManager.quickLog(this, "Successful login for user");
             return new ResultReturn(ResultReturn.Result.SUCCESS, "Login successful");
         } else {

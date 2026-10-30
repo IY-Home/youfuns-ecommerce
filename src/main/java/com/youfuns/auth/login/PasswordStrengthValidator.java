@@ -6,7 +6,7 @@ import com.youfuns.logger.SimpleLogger;
 
 import java.util.*;
 
-public class PasswordStrengthValidator {
+public final class PasswordStrengthValidator {
     private static final int MIN_LENGTH = 6;
     private static final int MAX_LENGTH = 128;
     private static final boolean REQUIRES_UPPERCASE = true;
@@ -133,9 +133,10 @@ public class PasswordStrengthValidator {
         substitutions.put('4', "[a@4]");
         substitutions.put('e', "[e3]");
         substitutions.put('3', "[e3]");
-        substitutions.put('i', "[i1!]");
-        substitutions.put('1', "[i1!]");
-        substitutions.put('!', "[i1!]");
+        substitutions.put('i', "[il1!]");
+        substitutions.put('1', "[il1!]");
+        substitutions.put('!', "[il1!]");
+        substitutions.put('l', "[il1!]");
         substitutions.put('t', "[t7]");
         substitutions.put('7', "[t7]");
         substitutions.put('b', "[b8]");

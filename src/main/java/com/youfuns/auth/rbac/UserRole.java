@@ -19,7 +19,7 @@ public record UserRole<P extends Enum<P> & Permission>(String name, Set<P> permi
         if (permissions.contains(permission)) return true;
         for (P perm : permissions) {
             if (perm.implications().contains(permission)) return true;
-            if (hasPermission((Collection<P>) perm.implications(), perm)) return true;
+            if (hasPermission((Collection<P>) perm.implications(), permission)) return true;
         }
         return false;
     }

@@ -5,7 +5,7 @@ import com.youfuns.auth.rbac.*;
 import com.youfuns.logger.LoggerManager;
 import com.youfuns.repo.Repository;
 import com.youfuns.auth.user.User;
-import com.youfuns.webserver.JwtService;
+import com.youfuns.auth.login.SessionTokenService;
 
 import java.util.List;
 import java.util.Optional;
@@ -14,25 +14,24 @@ import java.util.UUID;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 
-public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permission, UserClass extends User<PermissionClass>> {
-    private PermissionChecker<PermissionClass> permissionChecker;
-    private DefaultPermissions<PermissionClass> defaultPermissions;
-    private Repository<UUID, UserClass> userRepository;
-    private final BiFunction<Repository<UUID, UserClass>, String, List<UserClass>> findUsersByUsername;
+public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permission, UserClass extends User<PermissionClass>, RepositoryClass extends Repository<UUID, UserClass>> {
+    private final PermissionChecker<PermissionClass> permissionChecker;
+    private final DefaultPermissions<PermissionClass> defaultPermissions;
+    private final RepositoryClass userRepository;
+    private final BiFunction<RepositoryClass, String, List<UserClass>> findUsersByUsername;
 
     private AuthManager(PermissionChecker<PermissionClass> permissionChecker,
                         DefaultPermissions<PermissionClass> defaultPermissions,
-                        Repository<UUID, UserClass> initialRepository,
-                        BiFunction<Repository<UUID, UserClass>, String, List<UserClass>> findUsersByUsername) {
+                        RepositoryClass initialRepository,
+                        BiFunction<RepositoryClass, String, List<UserClass>> findUsersByUsername) {
         this.permissionChecker = permissionChecker;
         this.defaultPermissions = defaultPermissions;
         this.userRepository = initialRepository;
         this.findUsersByUsername = findUsersByUsername;
-        defaultPermissions.assignToClasses(UserCredentials.class, UserRoleHolder.class, User.class);
         LoggerManager.quickLog(this, "Created AuthManager");
     }
 
-    public static <T extends Enum<T> & Permission, U extends User<T>> Builder<T, U> builder(Class<T> permission, Class<U> user) {
+    public static <T extends Enum<T> & Permission, U extends User<T>, V extends Repository<UUID, U>> Builder<T, U, V> builder() {
         return new Builder<>();
     }
 
@@ -61,7 +60,8 @@ public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permiss
     }
 
     public UserClass getUserFromJwt(String jwt) {
-        String subject = JwtService.extractSubject(jwt);
+        if (!SessionTokenService.validateToken(jwt)) return null;
+        String subject = SessionTokenService.extractSubject(jwt);
         if (subject == null) return null;
         Optional<UserClass> user = userRepository.findById(UUID.fromString(subject));
         return user.orElse(null);
@@ -76,55 +76,76 @@ public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permiss
         return userRepository.delete(user.getId());
     }
 
-    public static class Builder<PermissionClass extends Enum<PermissionClass> & Permission, UserClass extends User<PermissionClass>> {
+    public ResultReturn adminDeleteUser(RoleToken adminToken, UserClass user) {
+        defaultPermissions.checkManageUsers(adminToken);
+        return userRepository.delete(user.getId());
+    }
+
+    public DefaultPermissions<PermissionClass> getDefaultPermissions() {
+        return defaultPermissions;
+    }
+
+    public static class Builder<PermissionClass extends Enum<PermissionClass> & Permission, UserClass extends User<PermissionClass>, RepositoryClass extends Repository<UUID, UserClass>> {
         private DefaultPermissions<PermissionClass> defaultPermissions;
         private final PermissionChecker<PermissionClass> permissionChecker;
-        private Repository<UUID, UserClass> userRepository;
-        private BiFunction<Repository<UUID, UserClass>, String, List<UserClass>> findUsersByUsername;
+        private RepositoryClass userRepository;
+        private BiFunction<RepositoryClass, String, List<UserClass>> findUsersByUsername;
 
         private Builder() {
             LoggerManager.quickLog(this, "Beginning AuthManager.Builder");
             this.permissionChecker = new PermissionChecker<>();
         }
 
-        public Builder<PermissionClass, UserClass> defaultPermissions(Set<UserRole<PermissionClass>> initialPerms, PermissionClass manageSelf, PermissionClass manageAdmin, PermissionClass assignRole) {
+        public Builder<PermissionClass, UserClass, RepositoryClass> defaultPermissions(Set<UserRole<PermissionClass>> initialPerms, PermissionClass manageSelf, PermissionClass manageAdmin, PermissionClass assignRole) {
             if (defaultPermissions != null) throw new IllegalStateException("Default permissions already initialized.");
             this.defaultPermissions = new DefaultPermissions<>(initialPerms, permissionChecker, manageSelf, manageAdmin, assignRole);
             LoggerManager.quickLog(this, "Set default permissions");
             return this;
         }
 
-        public Builder<PermissionClass, UserClass> passwordHasher(Function<String, String> passwordHasher, BiFunction<String, String, Boolean> passwordValidator) {
+        public Builder<PermissionClass, UserClass, RepositoryClass> passwordHasher(Function<String, String> passwordHasher, BiFunction<String, String, Boolean> passwordValidator) {
             UserCredentials.setPasswordHasher(passwordHasher, passwordValidator);
             LoggerManager.quickLog(this, "Set password hasher");
             return this;
         }
 
-        public Builder<PermissionClass, UserClass> enablePasswordStrengthValidation(boolean enable) {
+        public Builder<PermissionClass, UserClass, RepositoryClass> enablePasswordStrengthValidation(boolean enable) {
             UserCredentials.enablePasswordValidation(enable);
             LoggerManager.quickLog(this, "Set enable password strength validation:");
             return this;
         }
 
-        public Builder<PermissionClass, UserClass> repository(Repository<UUID, UserClass> userRepository) {
+        public Builder<PermissionClass, UserClass, RepositoryClass> sessionTokenService(Function<String, String> generateToken, Function<String, String> extractSubject) {
+            UserCredentials.setSessionTokenService(generateToken, extractSubject);
+            LoggerManager.quickLog(this, "Set session token service");
+            return this;
+        }
+
+        public Builder<PermissionClass, UserClass, RepositoryClass> repository(RepositoryClass userRepository) {
             this.userRepository = userRepository;
             LoggerManager.quickLog(this, "Set repository");
             return this;
         }
 
-        public Builder<PermissionClass, UserClass> toFindUsersByUsername(BiFunction<Repository<UUID, UserClass>, String, List<UserClass>> function) {
+        public Builder<PermissionClass, UserClass, RepositoryClass> toFindUsersByUsername(BiFunction<RepositoryClass, String, List<UserClass>> function) {
             this.findUsersByUsername = function;
             LoggerManager.quickLog(this, "Set findUsersByUsername function");
             return this;
         }
 
-        public Builder<PermissionClass, UserClass> selfPermissionEqualsSelf() {
+        public Builder<PermissionClass, UserClass, RepositoryClass> selfPermissionEqualsSelf() {
             permissionChecker.onUserPermission((permission, executor, target) -> executor.equals(target));
             LoggerManager.quickLog(this, "Enabled selfPermissionEqualsSelf");
             return this;
         }
 
-        public AuthManager<PermissionClass, UserClass> build() {
+        public Builder<PermissionClass, UserClass, RepositoryClass> passwordLockoutPolicy(int maxAttempts, int lockoutSecs) {
+            UserCredentials.setPasswordLockoutPolicy(maxAttempts, lockoutSecs);
+            LoggerManager.quickLog(this, "Set password lockout policy");
+            return this;
+        }
+
+        public AuthManager<PermissionClass, UserClass, RepositoryClass> build() {
             if (defaultPermissions == null) throw new IllegalStateException("Default permissions not initialized.");
             if (userRepository == null) throw new IllegalStateException("User repository not initialized.");
             if (findUsersByUsername == null) throw new IllegalStateException("Username search function not initialized.");

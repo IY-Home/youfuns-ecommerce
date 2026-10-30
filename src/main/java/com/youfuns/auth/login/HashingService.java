@@ -11,7 +11,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
-public class HashingService {
+final class HashingService {
     private static final Argon2Function ARGON2 = Argon2Function.getInstance(65536, 3, 4, 32, Argon2.ID);
 
     // ===== PASSWORD HASHING (Argon2 - salted, non-deterministic) =====

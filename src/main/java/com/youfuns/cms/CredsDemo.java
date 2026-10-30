@@ -1,22 +1,18 @@
 package com.youfuns.cms;
 
-import com.youfuns.auth.AuthManager;
 import com.youfuns.auth.login.UserCredentials;
+import com.youfuns.auth.rbac.DefaultPermissions;
 import com.youfuns.auth.rbac.UserRole;
-import com.youfuns.auth.rbac.dummy.AlwaysTruePermissions;
-import com.youfuns.auth.rbac.UserRoleHolder;
-import com.youfuns.auth.rbac.dummy.EmptyPerm;
 
 import java.util.Set;
 import java.util.UUID;
 
 public class CredsDemo {
     public static void main(String[] args) {
-        Set<UserRole<EmptyPerm>> roles = Set.of(new UserRole<>("TEST", Set.of(EmptyPerm.ALL)));
-        AlwaysTruePermissions<EmptyPerm> perms = new AlwaysTruePermissions<>(roles);
-        perms.assignToClasses(UserCredentials.class, UserRoleHolder.class);
+        Set<UserRole<DefaultPermissions.EmptyPerm>> roles = Set.of(new UserRole<>("TEST", Set.of(DefaultPermissions.EmptyPerm.ALL)));
+        DefaultPermissions.AlwaysTruePermissions<DefaultPermissions.EmptyPerm> perms = new DefaultPermissions.AlwaysTruePermissions<>(roles);
 
-        UserCredentials userCredentials = new UserCredentials(UUID.randomUUID(), Set.of("TestUser"), "X*fo*@rnc79y#^*F");
+        UserCredentials userCredentials = new UserCredentials(UUID.randomUUID(), Set.of("TestUser"), "X*fo*@rnc79y#^*F", perms);
         UserCredentials.LoginResult result = userCredentials.login("TestUser", "wrong");
         System.out.println(result);
         UserCredentials.LoginResult result2 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F");

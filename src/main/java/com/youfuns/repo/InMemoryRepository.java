@@ -3,6 +3,7 @@ package com.youfuns.repo;
 import com.youfuns.auth.rbac.ResultReturn;
 
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -10,7 +11,7 @@ public class InMemoryRepository<I, T> implements Repository<I, T> {
     private final Map<I, T> map;
 
     public InMemoryRepository() {
-        this.map = new HashMap<>();
+        this.map = new ConcurrentHashMap<>();
     }
 
     @Override
