@@ -56,7 +56,7 @@ public class Demo {
 
         public void approve(RoleToken adminToken) {
             if (approved) return;
-            defaultPermissions.checkManageUsers(adminToken);
+            this.getUserRoleHolder().addRole(adminToken, ADMIN_USER);
             approved = true;
         }
     }
@@ -97,12 +97,10 @@ public class Demo {
                     exchange.sendJson(loginResult);
                 })
                 .on("/api/checkInfo", exchange -> {
-                    String jwt = exchange.getBearerToken();
                     MyUser user = exchange.getAttribute("user", MyUser.class);
                     exchange.send("Name: " + user.name + ", approved: " + user.approved);
                 })
                 .on("/api/approve", exchange -> {
-                    String jwt = exchange.getBearerToken();
                     MyUser user = exchange.getAttribute("user", MyUser.class);
                     UUID target = UUID.fromString(exchange.getJsonParameterAsString("target"));
                     MyUser targetUser = authManager.findById(target).orElse(null);

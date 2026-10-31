@@ -155,6 +155,9 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
         @SuppressWarnings("unchecked")
         public <T extends Enum<T> & Permission> UserRoleHolder<T> getToken(RoleToken roleToken) {
             LoggerManager.quickLog(this, "Validating token...");
+            if (roleToken == null) {
+                return null;
+            }
             UserRoleHolder<T> userRoleHolder = (UserRoleHolder<T>) activeTokens.get(roleToken);
             activeTokens.remove(roleToken); // Remove single-use token
             return userRoleHolder;
