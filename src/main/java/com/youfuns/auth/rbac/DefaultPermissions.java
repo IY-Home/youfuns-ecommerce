@@ -59,7 +59,7 @@ public sealed class DefaultPermissions<T extends Enum<T> & Permission> permits D
 
         @Override
         public RoleToken issueToken(UserRoleHolder<T> uh) {
-            return uh == null ? new RoleToken(UUID.randomUUID(), UUID.randomUUID()) : uh.getToken();
+            return uh == null ? new RoleToken(UUID.randomUUID(), UUID.randomUUID()) : checker.issueToken(uh);
         }
     }
 

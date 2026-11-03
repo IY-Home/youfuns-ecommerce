@@ -72,7 +72,7 @@ public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permiss
     }
 
     public ResultReturn deleteUser(UserClass user) {
-        defaultPermissions.checkManageSelf(user.getUserRoleHolder().getToken(), user.getId());
+        defaultPermissions.checkManageSelf(user.getToken(), user.getId());
         return userRepository.delete(user.getId());
     }
 
@@ -111,7 +111,7 @@ public class AuthManager<PermissionClass extends Enum<PermissionClass> & Permiss
 
         public Builder<PermissionClass, UserClass, RepositoryClass> enablePasswordStrengthValidation(boolean enable) {
             UserCredentials.enablePasswordValidation(enable);
-            LoggerManager.quickLog(this, "Set enable password strength validation:");
+            LoggerManager.quickLog(this, "Set enable password strength validation");
             return this;
         }
 

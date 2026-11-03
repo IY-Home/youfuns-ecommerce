@@ -46,7 +46,7 @@ public abstract class User<T extends Enum<T> & Permission> {
     public UserCredentials getUserCredentials() {
         return userCredentials;
     }
-    public UserRoleHolder<T> getUserRoleHolder() {
+    protected UserRoleHolder<T> getUserRoleHolder() {
         return userRoleHolder;
     }
 }

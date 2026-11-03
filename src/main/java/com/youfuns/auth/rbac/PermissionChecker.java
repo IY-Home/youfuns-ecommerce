@@ -108,12 +108,6 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
         for (UserRole<T> userRole : uh.roles()) {
             if (userRole.hasPermission(requiredPermission)) {
                 LoggerManager.quickLog(PermissionChecker.class, "Role " + userRole.name() + " has permission", SimpleLogger.Level.DEBUG);
-                /* for (Permission permission : requiredPermission.implications()) {
-                    if (!userRole.hasPermission((T) permission)) {
-                        LoggerManager.quickLog(PermissionChecker.class, "Role does not have implied permission " + permission.name() + ", moving on to next role", SimpleLogger.Level.DEBUG);
-                        continue mainLoop;
-                    }
-                } */
                 hasPermission = true;
                 break;
             }
@@ -153,7 +147,7 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
         private final Map<RoleToken, UserRoleHolder<?>> activeTokens = new ConcurrentHashMap<>();
 
         @SuppressWarnings("unchecked")
-        public <T extends Enum<T> & Permission> UserRoleHolder<T> getToken(RoleToken roleToken) {
+        private <T extends Enum<T> & Permission> UserRoleHolder<T> getToken(RoleToken roleToken) {
             LoggerManager.quickLog(this, "Validating token...");
             if (roleToken == null) {
                 return null;
@@ -163,7 +157,7 @@ public final class PermissionChecker<T extends Enum<T> & Permission> {
             return userRoleHolder;
         }
 
-        public <T extends Enum<T> & Permission> RoleToken issueToken(UserRoleHolder<T> uh) {
+        private <T extends Enum<T> & Permission> RoleToken issueToken(UserRoleHolder<T> uh) {
             LoggerManager.quickLog(this, "Issuing token to user with roles " + uh.roles().toString());
             RoleToken token = new RoleToken(UUID.randomUUID(), uh.id());
             activeTokens.put(token, uh);

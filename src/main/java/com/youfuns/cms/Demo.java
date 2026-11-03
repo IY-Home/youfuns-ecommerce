@@ -69,8 +69,8 @@ public class Demo {
                 .sessionTokenService(JwtService::generateToken, JwtService::extractSubject)
                 .toFindUsersByUsername((repo, username) ->
                         repo
-                                .findWhere(user -> user.getUserCredentials().getUsernames().contains(username))
-                                .stream().map(Map.Entry::getValue).toList())
+                        .findWhere(user -> user.getUserCredentials().getUsernames().contains(username))
+                        .stream().map(Map.Entry::getValue).toList())
                 .defaultPermissions(Set.of(NORMAL_USER), MainPerm.MANAGE_SELF, MainPerm.MANAGE_USERS, MainPerm.MANAGE_ROLES)
                 .selfPermissionEqualsSelf()
                 .passwordLockoutPolicy(5, 300)
