@@ -34,8 +34,7 @@ public record UserRoleHolder<P extends Enum<P> & Permission>(UUID id, Set<UserRo
         LoggerManager.quickLog(this, "Role " + role + " removed from UserRoleHolder instance by commanding user");
     }
 
-    @SuppressWarnings("unchecked")
     public RoleToken getToken() {
-        return ((DefaultPermissions<P>) defaultPermissions).issueToken(this);
+        return defaultPermissions.issueToken(this);
     }
 }

@@ -6,13 +6,20 @@
 
     <groupId>com.youfuns</groupId>
     <artifactId>Auth2</artifactId>
-    <version>1.2</version>
+    <version>2.0</version>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
+
+    <repositories>
+        <repository>
+            <id>project-local-repo</id>
+            <url>file://${project.basedir}/local-repo</url>
+        </repository>
+    </repositories>
 
     <dependencies>
         <dependency>
@@ -29,50 +36,6 @@
             <groupId>com.youfuns</groupId>
             <artifactId>Webserver</artifactId>
             <version>2.4.2</version>
-            <scope>system</scope>
-            <systemPath>${project.basedir}/libs/WebServer-2.4.2.jar</systemPath>
         </dependency>
-
     </dependencies>
-
-    <build>
-        <plugins>
-            <!-- Regular JAR plugin for library usage -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.3.0</version>
-                <configuration>
-                    <archive>
-                        <manifest>
-                            <addDefaultImplementationEntries>true</addDefaultImplementationEntries>
-                        </manifest>
-                    </archive>
-                </configuration>
-            </plugin>
-
-            <!-- Shade plugin to create an executable fat JAR -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-shade-plugin</artifactId>
-                <version>3.5.0</version>
-                <executions>
-                    <execution>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>shade</goal>
-                        </goals>
-                        <configuration>
-                            <transformers>
-                                <transformer
-                                        implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
-                                    <mainClass>com.youfuns.webserver.demo.Basic</mainClass>
-                                </transformer>
-                            </transformers>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
-        </plugins>
-    </build>
 </project>

@@ -34,6 +34,22 @@ public final class UserCredentials {
 
     private DefaultPermissions<?> defaultPermissions;
 
+    public UserCredentials(
+            UUID id, Set<String> usernames, String passwordHash,
+            boolean passwordLocked, boolean adminLocked, Instant passwordLockoutExpiry, Instant adminLockoutExpiry,
+            int failedAttempts,
+            DefaultPermissions<?> defaultPermissions) {
+        this.id = id;
+        this.usernames = usernames;
+        this.passwordHash = passwordHash;
+        this.passwordLocked = passwordLocked;
+        this.adminLocked = adminLocked;
+        this.passwordLockoutExpiry = passwordLockoutExpiry;
+        this.adminLockoutExpiry = adminLockoutExpiry;
+        this.defaultPermissions = defaultPermissions;
+        this.failedAttempts.set(failedAttempts);
+    }
+
     public static void setPasswordHasher(Function<String, String> passwordHasher, BiFunction<String, String, Boolean> passwordValidator) {
         validateCaller();
         UserCredentials.passwordHasher = passwordHasher;
