@@ -31,6 +31,10 @@ public sealed class DefaultPermissions<T extends Enum<T> & Permission> permits D
         checker.checkPermissionAndThrow(rt, this.assignRolePermission);
     }
 
+    public PermissionChecker<T> getChecker() {
+        return checker;
+    }
+
     public Set<UserRole<T>> getInitialUserPermissions() {
         return initialUserPermissions;
     }
@@ -39,6 +43,8 @@ public sealed class DefaultPermissions<T extends Enum<T> & Permission> permits D
         return checker.issueToken(uh);
     }
 
+
+    // ONLY for testing isolated components
     public static final class AlwaysTruePermissions<T extends Enum<T> & Permission> extends DefaultPermissions<T> {
         public AlwaysTruePermissions(Set<UserRole<T>> initialUserPermissions) {
             super(initialUserPermissions, null, null, null, null);

@@ -92,7 +92,7 @@ public final class PasswordStrengthValidator {
 
         List<String> passwordsContained = new ArrayList<>();
         for (String commonPassword : commonFragments) {
-            String substitutedCommon = applySubstitutions(commonPassword);
+            String substitutedCommon = applySubstitutions(commonPassword); // apply literal substitutions to the common passwords for direct comparison
 
             // Check exact matches with substitutions
             if (password.equals(commonPassword) ||

@@ -1,9 +1,9 @@
 package com.youfuns.cms;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.youfuns.auth.AuthManager;
+import com.youfuns.auth.login.AuthContext;
 import com.youfuns.auth.login.UserCredentials;
+import com.youfuns.auth.login.UserLoginConfig;
 import com.youfuns.auth.rbac.*;
 import com.youfuns.auth.user.User;
 import com.youfuns.auth.user.UserCredentialPayload;
@@ -60,13 +60,13 @@ public class Demo {
         private boolean approved = false;
         private final String name;
 
-        public MyUser(String name, UserCredentialPayload userRegistrationPayload, DefaultPermissions<MainPerm> defaultPermissions) {
-            super(null, userRegistrationPayload, defaultPermissions);
+        public MyUser(String name, UserCredentialPayload userRegistrationPayload, AuthContext<MainPerm> context) {
+            super(null, userRegistrationPayload, context, null);
             this.name = name;
         }
 
-        public MyUser(String name, Set<UserRole<MainPerm>> initialRoles, UserCredentialPayload userRegistrationPayload, DefaultPermissions<MainPerm> defaultPermissions) {
-            super(initialRoles, userRegistrationPayload, defaultPermissions);
+        public MyUser(String name, Set<UserRole<MainPerm>> initialRoles, UserCredentialPayload userRegistrationPayload, AuthContext<MainPerm> context) {
+            super(initialRoles, userRegistrationPayload, context, null);
             this.approved = true;
             this.name = name;
         }
@@ -98,20 +98,22 @@ public class Demo {
                 throw new RuntimeException(e);
             }
         }
-        public MyUser toUser(DefaultPermissions<MainPerm> live,
-                             Function<String, UserRole<MainPerm>> resolveRole) {
-            UserCredentials creds = user.toCredentials(live);
-            UserRoleHolder<MainPerm> holder = user.toRoleHolder(resolveRole, live);
-            return new MyUser(user.id(), creds, holder, user.createdDate(), name, approved, live);
+        public MyUser toUser(AuthContext<MainPerm> context, Function<String, UserRole<MainPerm>> resolveRole) {
+            UserCredentials creds = user.toCredentials(context);
+            UserRoleHolder<MainPerm> holder = user.toRoleHolder(resolveRole, context.permissions());
+            return new MyUser(user.id(), creds, holder, user.createdDate(), name, approved, context.permissions());
         }
     }
 
     public static void main(String[] args) {
         LoggerManager.INSTANCE.getLogger().setLogLevel(SimpleLogger.Level.DEBUG);
         InMemoryRepository<UUID, MyUser> repository = new InMemoryRepository<>();
-        // call method directly with explicit type witness
+        UserLoginConfig loginConfig = UserLoginConfig.defaults();
+
+        // call method directly with explicit type witness on builder
         var authManager = AuthManager.<MainPerm, MyUser, InMemoryRepository<UUID, MyUser>>builder()
                 .repository(repository)
+                .userLoginConfig(loginConfig)
                 .sessionTokenService(JwtService::generateToken, JwtService::extractSubject)
                 .toFindUsersByUsername((repo, username) ->
                         repo
@@ -119,10 +121,9 @@ public class Demo {
                         .stream().map(Map.Entry::getValue).toList())
                 .defaultPermissions(Set.of(MainRole.NORMAL_USER.getRole()), MainPerm.MANAGE_SELF, MainPerm.MANAGE_USERS, MainPerm.MANAGE_ROLES)
                 .selfPermissionEqualsSelf()
-                .passwordLockoutPolicy(5, 300)
                 .build();
         UserCredentialPayload payload = new UserCredentialPayload(Set.of("TomDoe1", "tom1@doe.com"), "Xk9#mP2!qL");
-        MyUser initialAdmin = new MyUser("Tom Doe", Set.of(MainRole.ADMIN_USER.getRole()), payload, authManager.getDefaultPermissions());
+        MyUser initialAdmin = new MyUser("Tom Doe", Set.of(MainRole.ADMIN_USER.getRole()), payload, authManager.authContext());
         System.out.println("Initial Admin UUID: " + initialAdmin.getId());
         authManager.addUser(initialAdmin);
         System.out.println(authManager.login("TomDoe1", "wrongpass").toString());
@@ -134,7 +135,7 @@ public class Demo {
                     String name = exchange.getJsonName("John Doe");
                     String username = exchange.getJsonUsername("JohnDoe1");
                     String password = exchange.getJsonPassword("Xk9#mP2!qL");
-                    MyUser user = new MyUser(name, new UserCredentialPayload(Set.of(username), password), authManager.getDefaultPermissions());
+                    MyUser user = new MyUser(name, new UserCredentialPayload(Set.of(username), password), authManager.authContext());
                     authManager.addUser(user);
                     exchange.send("Created user: " + user.getId());
                 })
@@ -182,7 +183,7 @@ public class Demo {
                 })
                 .on("/userFromJson", "POST", exchange -> {
                     MyUserSerializationDto dto = exchange.parseBodyAsJson(MyUserSerializationDto.class);
-                    authManager.addUser(dto.toUser(authManager.getDefaultPermissions(), name -> MainRole.valueOf(name).getRole()));
+                    authManager.addUser(dto.toUser(authManager.authContext(), name -> MainRole.valueOf(name).getRole()));
                     exchange.send("User added.");
                 })
                 .on("/serializeAll", exchange -> {

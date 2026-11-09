@@ -78,6 +78,7 @@ public class InMemoryRepository<I, T> implements Repository<I, T> {
         return map.entrySet().stream().filter(entry -> ids.contains(entry.getKey())).collect(Collectors.toUnmodifiableMap(Map.Entry::getKey, Map.Entry::getValue));
     }
 
+    // Exclusive to InMemoryRepository — real relational databases should not have predicate search
     public Set<Map.Entry<I, T>> findWhere(Predicate<? super T> predicate) {
         return map.entrySet().stream().filter(entry -> predicate.test(entry.getValue())).collect(Collectors.toSet());
     }

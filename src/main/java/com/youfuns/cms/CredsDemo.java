@@ -1,8 +1,9 @@
 package com.youfuns.cms;
 
-import com.youfuns.auth.login.UserCredentials;
+import com.youfuns.auth.login.*;
 import com.youfuns.auth.rbac.DefaultPermissions;
 import com.youfuns.auth.rbac.UserRole;
+import com.youfuns.webserver.JwtService;
 
 import java.util.Set;
 import java.util.UUID;
@@ -11,25 +12,34 @@ public class CredsDemo {
     public static void main(String[] args) {
         Set<UserRole<DefaultPermissions.EmptyPerm>> roles = Set.of(new UserRole<>("TEST", Set.of(DefaultPermissions.EmptyPerm.ALL)));
         DefaultPermissions.AlwaysTruePermissions<DefaultPermissions.EmptyPerm> perms = new DefaultPermissions.AlwaysTruePermissions<>(roles);
+        UserLoginConfig userLoginConfig = UserLoginConfig.defaults();
+        SessionTokenService sessionTokenService = new SessionTokenService();
+        sessionTokenService.set(JwtService::generateToken, JwtService::extractSubject);
+        HashingService hashingService = new HashingService();
+        AuthContext<DefaultPermissions.EmptyPerm> context = new AuthContext<>(
+                perms,
+                () -> userLoginConfig,
+                () -> hashingService
+        );
 
-        UserCredentials userCredentials = new UserCredentials(UUID.randomUUID(), Set.of("TestUser"), "X*fo*@rnc79y#^*F", perms);
-        UserCredentials.LoginResult result = userCredentials.login("TestUser", "wrong");
+        UserCredentials userCredentials = new UserCredentials(UUID.randomUUID(), Set.of("TestUser"), "X*fo*@rnc79y#^*F", null, context);
+        UserCredentials.LoginResult result = userCredentials.login("TestUser", "wrong", sessionTokenService);
         System.out.println(result);
-        UserCredentials.LoginResult result2 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F");
+        UserCredentials.LoginResult result2 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F", sessionTokenService);
         System.out.println(result2);
         for (int i = 0; i < 6; i++) {
-            UserCredentials.LoginResult wrong = userCredentials.login("TestUser", "wrong");
+            UserCredentials.LoginResult wrong = userCredentials.login("TestUser", "wrong", sessionTokenService);
             System.out.println(wrong);
         }
-        UserCredentials.LoginResult result3 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F");
+        UserCredentials.LoginResult result3 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F", sessionTokenService);
         System.out.println(result3);
         userCredentials.unlockAccount(perms.issueToken(null));
-        UserCredentials.LoginResult result4 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F");
+        UserCredentials.LoginResult result4 = userCredentials.login("TestUser", "X*fo*@rnc79y#^*F", sessionTokenService);
         System.out.println(result4);
 
         System.out.println(userCredentials.changePassword(perms.issueToken(null), "wrongold", "new_X*fo*@rnc79y#^*F"));
         System.out.println(userCredentials.changePassword(perms.issueToken(null), "X*fo*@rnc79y#^*F", "new_X*fo*@rnc79y#^*F"));
-        System.out.println(userCredentials.login("TestUser", "X*fo*@rnc79y#^*F"));
-        System.out.println(userCredentials.login("TestUser", "new_X*fo*@rnc79y#^*F"));
+        System.out.println(userCredentials.login("TestUser", "X*fo*@rnc79y#^*F", sessionTokenService));
+        System.out.println(userCredentials.login("TestUser", "new_X*fo*@rnc79y#^*F", sessionTokenService));
     }
 }
